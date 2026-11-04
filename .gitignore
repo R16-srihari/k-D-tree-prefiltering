@@ -1,3 +1,5 @@
 ./.venv/
 ./.vscode/
 
+# Ignore all source files in the Sources directory
+./Sources/*
