@@ -23,10 +23,13 @@ from .metrics import mean_distance_difference, recall_at_k
 
 @dataclass
 class BenchmarkConfig:
-    n_rso: int = 500
-    k: int = 10
-    n_components: int = 3
-    cube_size: float = 1000.0
+    n_rso: int = 100
+    k: int = 5
+    n_components: int = 6
+    r_min: float = 6500.0
+    r_max: float = 8000.0
+    var_min: float = 1000.0
+    var_max: float = 10000.0
     seed: int = 42
     leaf_size: int = 10
     metrics: list[str] | None = None
@@ -95,8 +98,11 @@ def run_benchmark(config: BenchmarkConfig | None = None) -> BenchmarkResults:
     catalogue = generate_synthetic_catalogue(
         n_rso=config.n_rso,
         n_components=config.n_components,
-        cube_size=config.cube_size,
+        r_min=config.r_min,
+        r_max=config.r_max,
         seed=config.seed,
+        var_min=config.var_min,
+        var_max=config.var_max,
     )
     catalogue_build_time = time.perf_counter() - catalogue_start
 

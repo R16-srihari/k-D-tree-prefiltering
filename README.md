@@ -36,7 +36,7 @@ python -m rso_kdtree.main \
     --k 10 \
     --metric hellinger \
     --components 3 \
-    --leaf-size 10 \
+    --leaf-size 1 \
     --seed 42 \
     --output results.csv
 ```
@@ -99,3 +99,6 @@ pytest tests/
 The synthetic catalogue uses `np.random.default_rng(seed)` with a fixed
 seed (default 42). The same catalogue is reused across all distance
 metrics, ensuring fair metric comparisons.
+
+## References
+1. M. Mercurio and P. Singla, “A Tree-Based Approach for Efficient and Accurate Conjunction Analysis,” Comput. Model. Eng. Sci., vol. 111, no. 3, pp. 229–256, 2016. https://doi.org/10.3970/cmes.2016.111.229

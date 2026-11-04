@@ -30,5 +30,4 @@ def build_kdtree(positions: np.ndarray, leaf_size: int = 10) -> KDTree:
     return KDTree(positions, leafsize=leaf_size)
 
 
-__all__ = ["build_kdtree", "KDTree"]
-
+__all__ = ["KDTree", "build_kdtree"]

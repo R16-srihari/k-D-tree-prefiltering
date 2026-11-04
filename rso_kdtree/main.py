@@ -26,13 +26,13 @@ from .spatial import build_kdtree
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Probabilistic KNN screening of RSOs using a modular K-D tree."
+        description="Probabilistic KNN screening of RSOs using a modular K-D tree (Mercurio spec)."
     )
     parser.add_argument(
-        "--n-rso", type=int, default=2000, help="Number of RSOs (default: 2000)"
+        "--n-rso", type=int, default=100, help="Number of RSOs (default: 100)"
     )
     parser.add_argument(
-        "--k", type=int, default=10, help="Number of neighbors (default: 10)"
+        "--k", type=int, default=5, help="Number of neighbors (default: 5)"
     )
     parser.add_argument(
         "--metric",
@@ -44,29 +44,53 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--components",
         type=int,
-        default=3,
-        help="GMM components per RSO (default: 3)",
+        default=6,
+        help="GMM components per RSO (default: 6, per Mercurio)",
     )
     parser.add_argument(
         "--leaf-size",
         type=int,
-        default=10,
-        help="K-D tree leaf size (default: 10)",
+        default=1,
+        help="K-D tree leaf size (default: 1)",
     )
     parser.add_argument(
         "--seed", type=int, default=42, help="Random seed (default: 42)"
     )
     parser.add_argument(
-        "--cube-size",
+        "--r-min",
+        type=float,
+        default=6500.0,
+        help="Minimum orbital radius in km (default: 6500, per Mercurio)",
+    )
+    parser.add_argument(
+        "--r-max",
+        type=float,
+        default=8000.0,
+        help="Maximum orbital radius in km (default: 8000, per Mercurio)",
+    )
+    parser.add_argument(
+        "--var-min",
         type=float,
         default=1000.0,
-        help="Position cube half-width in km (default: 1000)",
+        help="Minimum covariance variance in km^2 (default: 1000, per Mercurio)",
+    )
+    parser.add_argument(
+        "--var-max",
+        type=float,
+        default=10000.0,
+        help="Maximum covariance variance in km^2 (default: 10000, per Mercurio)",
     )
     parser.add_argument(
         "--output",
         type=str,
-        default=None,
+        default="benchmark.csv",
         help="Output CSV path for KNN results",
+    )
+    parser.add_argument(
+        "--log-output",
+        type=str,
+        default="benchmark_log.txt",
+        help="Output text file path for benchmark log (includes settings and results)",
     )
     parser.add_argument(
         "--benchmark",
@@ -83,8 +107,11 @@ def run_single(config: argparse.Namespace) -> None:
     catalogue = generate_synthetic_catalogue(
         n_rso=config.n_rso,
         n_components=config.components,
-        cube_size=config.cube_size,
+        r_min=config.r_min,
+        r_max=config.r_max,
         seed=config.seed,
+        var_min=config.var_min,
+        var_max=config.var_max,
     )
 
     positions = np.array([r.nominal_position for r in catalogue])
@@ -151,6 +178,8 @@ def run_single(config: argparse.Namespace) -> None:
 
     print(f"Metric: {config.metric}")
     print(f"RSOs: {config.n_rso}, K: {k}, Components: {config.components}, Seed: {config.seed}")
+    print(f"Orbital radius: [{config.r_min}, {config.r_max}] km")
+    print(f"Covariance variance: [{config.var_min}, {config.var_max}] km^2")
     print(f"K-D tree total time: {total_kdtree_time:.4f}s")
     print(f"Brute force total time: {total_brute_time:.4f}s")
     print(f"Mean Recall@K: {mean_recall:.4f}")
@@ -179,33 +208,82 @@ def run_single(config: argparse.Namespace) -> None:
         print(f"Results written to {output_path}")
 
 
+class TeeOutput:
+    """Write to both stdout and a file."""
+    def __init__(self, file_path: str | None = None):
+        self.file = None
+        if file_path:
+            self.file = open(file_path, "w")
+    
+    def write(self, text: str) -> None:
+        print(text, end="")
+        if self.file:
+            self.file.write(text)
+            self.file.flush()
+    
+    def flush(self) -> None:
+        if self.file:
+            self.file.flush()
+    
+    def close(self) -> None:
+        if self.file:
+            self.file.close()
+
+
 def run_benchmark(config: argparse.Namespace) -> None:
     """Run the benchmark suite across all metrics and component counts."""
-    from .benchmark.benchmark import run_benchmark as bench_run, BenchmarkConfig
+    from .benchmark.benchmark import BenchmarkConfig
+    from .benchmark.benchmark import run_benchmark as bench_run
 
     bench_config = BenchmarkConfig(
         n_rso=config.n_rso,
         k=config.k,
         n_components=config.components,
-        cube_size=config.cube_size,
+        r_min=config.r_min,
+        r_max=config.r_max,
+        var_min=config.var_min,
+        var_max=config.var_max,
         seed=config.seed,
         leaf_size=config.leaf_size,
     )
 
-    results = bench_run(bench_config)
-    df = results.to_dataframe()
+    # Set up tee output for logging
+    tee = TeeOutput(config.log_output)
+    
+    try:
+        # Write log header
+        tee.write("=== RSO KNN Benchmark Log ===\n")
+        tee.write(f"Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        tee.write(f"Save log to: {config.log_output}\n")
+        # Write initial settings (Mercurio spec)
+        tee.write("=== Benchmark Configuration (Mercurio Specification) ===\n")
+        tee.write(f"n_rso: {config.n_rso}\n")
+        tee.write(f"k: {config.k}\n")
+        tee.write(f"components: {config.components} (equal weights)\n")
+        tee.write(f"Orbital radius range: [{config.r_min}, {config.r_max}] km\n")
+        tee.write(f"Covariance variance range: [{config.var_min}, {config.var_max}] km^2 (diagonal)\n")
+        tee.write(f"seed: {config.seed}\n")
+        tee.write(f"leaf_size: {config.leaf_size}\n")
+        tee.write(f"metrics: all (hellinger, wasserstein, mahalanobis, kl)\n")
+        tee.write("\n")
 
-    print("\n=== Benchmark Results ===")
-    print(df.to_string(index=False))
+        results = bench_run(bench_config)
+        df = results.to_dataframe()
 
-    print(f"\nCatalogue build time: {results.catalogue_build_time:.4f}s")
-    print(f"K-D tree build time: {results.kdtree_build_time:.4f}s")
+        tee.write("\n=== Benchmark Results ===\n")
+        tee.write(df.to_string(index=False))
+        tee.write("\n")
 
-    if config.output:
-        output_path = Path(config.output)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        df.to_csv(output_path, index=False)
-        print(f"Benchmark results written to {output_path}")
+        tee.write(f"\nCatalogue build time: {results.catalogue_build_time:.4f}s\n")
+        tee.write(f"K-D tree build time: {results.kdtree_build_time:.4f}s\n")
+
+        if config.output:
+            output_path = Path(config.output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            df.to_csv(output_path, index=False)
+            tee.write(f"Benchmark results written to {output_path}\n")
+    finally:
+        tee.close()
 
 
 def main(argv: list[str] | None = None) -> int:

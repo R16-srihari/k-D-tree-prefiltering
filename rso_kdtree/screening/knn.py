@@ -29,9 +29,9 @@ import time
 import numpy as np
 from scipy.spatial import KDTree
 
-from ..models.rso import RSO
 from ..distances.base import ProbabilisticDistance
-from .results import NeighborResult, KNNResult, KNNSearchStats
+from ..models.rso import RSO
+from .results import KNNResult, KNNSearchStats, NeighborResult
 
 
 def _update_best(
@@ -47,14 +47,21 @@ def _update_best(
     return best
 
 
-def _current_euclidean_threshold(best: list[NeighborResult], k: int) -> float:
-    """K-th smallest nominal Euclidean distance among current best candidates.
+def _current_euclidean_threshold(
+    euclidean_dists: list[float], k: int
+) -> float:
+    """K-th smallest nominal Euclidean distance among all evaluated candidates.
+
+    Per PLAN.md §10.3, D_E,K is the K-th smallest nominal Euclidean distance
+    among the evaluated candidate objects. This value is monotonically
+    non-increasing as more candidates are evaluated, so the ball-query radius
+    only shrinks or stays the same, guaranteeing termination.
 
     Returns infinity if fewer than K candidates have been evaluated.
     """
-    if len(best) < k:
+    if len(euclidean_dists) < k:
         return float("inf")
-    return best[k - 1].nominal_euclidean_distance
+    return sorted(euclidean_dists)[k - 1]
 
 
 def probabilistic_knn(
@@ -96,6 +103,8 @@ def probabilistic_knn(
     query_rso_index = int(query_rso.object_id.split("_")[-1])
     # Pre-mark the query index so it is never re-returned by ball queries.
     evaluated: set[int] = {query_rso_index}
+    # Euclidean distances of all evaluated candidates, used for D_E,K threshold.
+    evaluated_euclidean_dists: list[float] = []
 
     def make_result() -> KNNResult:
         return KNNResult(
@@ -127,6 +136,7 @@ def probabilistic_knn(
                 np.linalg.norm(query_position - candidate.nominal_position)
             )
             evaluated.add(idx)
+            evaluated_euclidean_dists.append(euclidean_dist)
             best = _update_best(
                 best,
                 NeighborResult(
@@ -149,12 +159,12 @@ def probabilistic_knn(
 
     # Phase 2: ball-query expansion at the D_E,K threshold until stable
     while len(best) >= k_available:
-        threshold = _current_euclidean_threshold(best, k)
+        threshold = _current_euclidean_threshold(evaluated_euclidean_dists, k)
         if not np.isfinite(threshold):
             break
-        ball_indices = set(
+        ball_indices = {
             int(i) for i in kd_tree.query_ball_point(query_position, threshold)
-        )
+        }
         new_indices = [i for i in ball_indices if i not in evaluated]
         if not new_indices:
             break
