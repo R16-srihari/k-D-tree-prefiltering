@@ -1,530 +1,1050 @@
-# Task: Implement Mercurio–Singla K-d Tree-Based Conjunction Screening in Python
+# Implementation Plan: Probabilistic K-Nearest Neighbor Screening of RSOs Using a Modular K-D Tree
 
-## 1. Objective
+## 1. Project Objective
 
-Implement a modular, well-tested Python framework replicating the K-d tree-based conjunction screening approach described in:
+Develop a Python implementation of a K-d tree-based algorithm for finding the **K nearest resident space objects (RSOs)** according to their positional uncertainty distributions.
 
-1. *A Tree-Based Approach for Efficient and Accurate Conjunction Analysis* — Michael Mercurio and Puneet Singla.
-2. *A Non-Combinatorial Approach for Efficient Conjunction Analysis* — accompanying thesis.
+Each RSO is represented by:
 
-The objective is to reduce the computational cost of identifying potentially significant Resident Space Object (RSO) pairs from an orbital catalog while accounting for positional uncertainty.
+- A nominal 3D position.
+- A 3D Gaussian Mixture Model (GMM) representing positional uncertainty.
+- A unique object identifier.
 
-The implementation must reproduce the original method as closely as possible before introducing improvements.
+The algorithm must support four selectable probabilistic distance measures:
 
-**Critical architectural requirement:** The probabilistic distance metric must be implemented as an independent module. The K-d tree screening algorithm must not contain metric-specific logic. This will allow alternative probabilistic distance measures to be substituted without modifying the tree implementation.
+1. Wasserstein distance
+2. Mahalanobis distance
+3. Hellinger distance
+4. Symmetric KL divergence
 
----
+The implementation should use a K-d tree for spatial acceleration, while also providing a brute-force reference implementation to evaluate accuracy and performance.
 
-## 2. Scope
+### Main objectives
 
-Implement the following capabilities:
-
-- Represent RSOs with mean Cartesian position and uncertainty distributions.
-- Construct a balanced K-d tree using RSO mean positions.
-- Implement the modified Mercurio–Singla nearest-neighbor search.
-- Compute Euclidean distance between RSO mean positions.
-- Compute Euclidean distance from a query point to a K-d tree bounding box.
-- Compute probabilistic distances through a pluggable distance interface.
-- Support Gaussian distributions initially.
-- Support Gaussian Mixture Models (GMMs).
-- Implement Mercurio–Singla's Hellinger distance formulation.
-- Compare K-d tree results against brute-force screening.
-- Measure execution time, number of distance evaluations, and screening accuracy.
-
-Do not implement TCA determination or probability-of-collision calculation in this project. These belong to subsequent conjunction-analysis modules.
+- Generate a catalogue of 2,000 synthetic RSOs.
+- Represent each RSO's positional uncertainty using a configurable 3D GMM.
+- Find the K nearest RSOs using the selected probabilistic distance.
+- Compare probabilistic metrics using an identical catalogue.
+- Benchmark the K-d tree against brute force.
+- Quantify the accuracy limitations introduced by Euclidean spatial pruning.
+- Keep the implementation modular and extensible.
 
 ---
 
-## 3. Required software architecture
+## 2. Core Design Decisions
 
-Create the following project structure:
+### 2.1 Definition of K-nearest neighbors
 
-```text
-mercurio_singla/
-│
+Define K-nearest neighbors as the K RSOs ranked by the **selected probabilistic distance between their uncertainty distributions**.
 
-├── pyproject.toml
-├── README.md
-│
-├── src/
-│   └── conjunction_screening/
-│       ├── __init__.py
-│       │
-│       ├── models/
-│       │   ├── __init__.py
-│       │   ├── rso.py
-│       │   ├── gaussian.py
-│       │   └── gmm.py
-│       │
-│       ├── distances/
-│       │   ├── __init__.py
-│       │   ├── base.py
-│       │   ├── hellinger.py
-│       │   └── factory.py
-│       │
-│       ├── spatial/
-│       │   ├── __init__.py
-│       │   ├── kd_node.py
-│       │   ├── kd_tree.py
-│       │   └── geometry.py
-│       │
-│       ├── screening/
-│       │   ├── __init__.py
-│       │   ├── mercurio_singla.py
-│       │   ├── brute_force.py
-│       │   └── results.py
-│       │
-│       ├── benchmarking/
-│       │   ├── __init__.py
-│       │   ├── metrics.py
-│       │   └── experiments.py
-│       │
-│       └── utils/
-│           └── validation.py
-│
-├── tests/
-│   ├── test_gaussian_distance.py
-│   ├── test_gmm_distance.py
-│   ├── test_kd_tree.py
-│   ├── test_geometry.py
-│   ├── test_screening.py
-│   └── test_brute_force.py
-│
-└── examples/
-    ├── gaussian_example.py
-    └── gmm_example.py
-```
+The nominal Euclidean distance must not determine the final ranking.
 
-The structure may be refined if necessary, but preserve the separation between spatial indexing, screening logic, probabilistic distance computation, and uncertainty representation.
-
-
-## 4. RSO data model
-
-Create an RSO class with:
-
-`python
-class RSO:
-    id: str
-    mean_position: np.ndarray
-    uncertainty: object
-`
-
-Requirements:
-- mean_position must be a three-dimensional Cartesian position vector.
-- Position units must be consistent across all RSOs.
-- The uncertainty distribution must be stored independently of the spatial index.
-- Validate dimensions and covariance matrices.
-- Support both Gaussian and GMM uncertainty representations.
-- Preserve the original catalog identifier.
-
-The K-d tree must use the RSO's overall mean position.
-
-For a GMM:
+For a query RSO \(q\), define:
 
 \[
-oldsymbol{\mu}=
-\sum_{i=1}^{M}w_ioldsymbol{\mu}_i
+\mathcal{N}_K(q)
+=
+\operatorname{arg\,Kmin}_{j\ne q}
+D(P_q,P_j)
 \]
 
-The overall mean must be calculated from the component means and weights.
+where:
+
+- \(P_q\) is the query RSO's positional uncertainty distribution.
+- \(P_j\) is the candidate RSO's positional uncertainty distribution.
+- \(D\) is the selected probabilistic distance measure.
+
+Requirements:
+
+- Exclude the query RSO from its own neighbor list.
+- Rank results by probabilistic distance.
+- Break ties deterministically using `object_id`.
+- Keep Euclidean distance separate from probabilistic distance.
+
+### 2.2 Use the same random catalogue for every metric
+
+Generate one synthetic catalogue of 2,000 RSOs and reuse it for all metric comparisons.
+
+The catalogue must include the same:
+
+- Nominal positions
+- GMM component means
+- Covariance matrices
+- Component weights
+- Object identifiers
+
+Use a fixed random seed, defaulting to `42`.
+
+Switching between Wasserstein, Mahalanobis, Hellinger, and KL must not regenerate the catalogue.
+
+This ensures that metric comparisons are fair and reproducible.
+
+### 2.3 Brute-force validation
+
+Implement a brute-force KNN algorithm that computes the selected probabilistic distance between each query RSO and every other RSO.
+
+Treat brute-force results as the reference solution for each selected metric.
+
+Compare K-d tree results against brute force using:
+
+\[
+\operatorname{Recall@K}(q)
+=
+\frac{
+|\mathcal{N}^{KD}_K(q)\cap
+\mathcal{N}^{BF}_K(q)|
+}{K}
+\]
+
+where:
+
+- \(\mathcal{N}^{KD}_K(q)\) is the K-d tree neighbor set.
+- \(\mathcal{N}^{BF}_K(q)\) is the brute-force neighbor set.
+
+Report the mean Recall@K across all query RSOs.
+
+**Important limitation:** Euclidean AABB pruning is not guaranteed to preserve probabilistic KNN rankings. Objects with distant nominal positions may have similar uncertainty distributions, particularly when uncertainties are large or anisotropic.
+
+Therefore, clearly distinguish:
+
+- Exact brute-force probabilistic KNN
+- K-d tree probabilistic ranking with Euclidean spatial pruning
+- Approximation error caused by pruning
+
+Do not claim that the K-d tree produces exact probabilistic KNN unless the pruning rule is mathematically proven safe for the selected distance.
+
+### 2.4 Configurable GMM component count
+
+Make the number of Gaussian components per RSO configurable.
+
+Default:
+
+\[
+M=3
+\]
+
+Support experiments with:
+
+\[
+M\in\{1,2,3,5\}
+\]
+
+For \(M=1\), the GMM reduces to a single Gaussian distribution.
+
+Evaluate how component count affects:
+
+- Distance computation time
+- K-d tree query runtime
+- Brute-force runtime
+- Recall@K
+- Number of probabilistic distance evaluations
+
+Keep the catalogue generation reproducible across component-count experiments.
 
 ---
 
-## 5. Probabilistic distance interface
+## 3. Project Architecture
 
-Implement a generic abstract interface in:
+Create the following package structure:
 
-\\python
+```text
+rso_kdtree/
+│
+├── models/
+│   ├── gaussian_component.py
+│   ├── gaussian_mixture.py
+│   └── rso.py
+│
+├── distances/
+│   ├── base.py
+│   ├── gaussian_distances.py
+│   ├── gmm_distances.py
+│   └── factory.py
+│
+├── spatial/
+│   ├── kd_tree.py
+│   ├── kd_node.py
+│   └── geometry.py
+│
+├── screening/
+│   ├── knn.py
+│   ├── brute_force.py
+│   └── results.py
+│
+├── data/
+│   └── synthetic_catalogue.py
+│
+├── benchmark/
+│   ├── benchmark.py
+│   └── metrics.py
+│
+├── tests/
+│   ├── test_distances.py
+│   ├── test_gmm.py
+│   ├── test_kdtree.py
+│   ├── test_knn.py
+│   └── test_reproducibility.py
+│
+├── main.py
+├── requirements.txt
+└── README.md
+```
+
+Keep the probabilistic distance implementation independent from the K-d tree.
+
+The tree should not need to know the internal structure of a specific distance measure.
+
+---
+
+## 4. Data Models
+
+### 4.1 Gaussian component
+
+Implement a Gaussian component:
+
+```python
+class GaussianComponent:
+    mean: np.ndarray
+    covariance: np.ndarray
+```
+
+Requirements:
+
+- Mean shape: `(3,)`
+- Covariance shape: `(3, 3)`
+- Covariance must be symmetric.
+- Covariance must be positive definite for Gaussian KL and standard Gaussian distance calculations.
+- Validate input dimensions.
+- Include numerical safeguards for covariance matrices.
+
+### 4.2 Gaussian mixture model
+
+Implement:
+
+```python
+class GaussianMixture:
+    weights: np.ndarray
+    components: list[GaussianComponent]
+```
+
+Requirements:
+
+- Component weights must be nonnegative.
+- Weights must sum to one.
+- All components must be 3D.
+- Number of components must be configurable.
+
+Represent the GMM as:
+
+\[
+p(\mathbf{x})
+=
+\sum_{i=1}^{M}
+\alpha_i
+\mathcal{N}(\mathbf{x}\mid
+\boldsymbol{\mu}_i,\Sigma_i)
+\]
+
+where:
+
+\[
+\sum_{i=1}^{M}\alpha_i=1
+\]
+
+### 4.3 RSO model
+
+Implement:
+
+```python
+class RSO:
+    object_id: str
+    nominal_position: np.ndarray
+    uncertainty: GaussianMixture
+```
+
+Requirements:
+
+- `nominal_position` has shape `(3,)`.
+- `uncertainty` is a 3D GMM.
+- The nominal position is used for spatial indexing.
+- The GMM is used for probabilistic distance calculations.
+
+The nominal position may differ from the GMM mean, but the synthetic catalogue should normally keep them consistent or define the relationship explicitly.
+
+---
+
+## 5. Probabilistic Distance Module
+
+### 5.1 Distance interface
+
+Implement a common interface:
+
+```python
 from abc import ABC, abstractmethod
 
 class ProbabilisticDistance(ABC):
 
     @abstractmethod
-    def compute(self, distribution_a, distribution_b) -> float:
+    def compute(self, gmm_a, gmm_b) -> float:
         pass
-\
-The K-d tree screening algorithm must interact with this interface exclusively.
+```
+
+The KNN algorithm should accept a distance object:
+
+```python
+knn_search(
+    query_rso,
+    kd_tree,
+    k,
+    distance_metric
+)
+```
+
+### 5.2 Runtime metric selection
+
+Implement a factory:
+
+```python
+def create_distance_metric(metric_name):
+    ...
+```
+
+Supported metric strings:
+
+```text
+"wasserstein"
+"mahalanobis"
+"hellinger"
+"kl"
+```
+
+The CLI should allow:
+
+```bash
+python main.py --metric hellinger
+```
+
+Changing the metric should require no changes to the K-d tree or screening algorithm.
+
+---
+
+## 6. Gaussian Distance Measures
+
+Implement Gaussian-level distance functions first.
+
+### 6.1 Hellinger distance
+
+For Gaussian distributions:
+
+\[
+P=\mathcal{N}(\mu_1,\Sigma_1)
+\]
+
+\[
+Q=\mathcal{N}(\mu_2,\Sigma_2)
+\]
+
+Define:
+
+\[
+\bar{\Sigma}
+=
+\frac{\Sigma_1+\Sigma_2}{2}
+\]
+
+\[
+\Delta\mu=\mu_1-\mu_2
+\]
+
+The Bhattacharyya coefficient is:
+
+\[
+BC(P,Q)
+=
+\frac{
+|\Sigma_1|^{1/4}
+|\Sigma_2|^{1/4}
+}{
+|\bar{\Sigma}|^{1/2}
+}
+\exp\left(
+-\frac18
+\Delta\mu^T
+\bar{\Sigma}^{-1}
+\Delta\mu
+\right)
+\]
+
+Then:
+
+\[
+D_H(P,Q)=\sqrt{1-BC(P,Q)}
+\]
+
+Requirements:
+
+- Symmetric
+- Nonnegative
+- Zero for identical distributions
+- Numerically stable
+- Return values in \([0,1]\), up to numerical tolerance
+
+Use `slogdet` and linear solves rather than direct matrix inversion where possible.
+
+### 6.2 Wasserstein distance
+
+Implement the Gaussian 2-Wasserstein distance:
+
+\[
+W_2^2(P,Q)
+=
+\|\mu_1-\mu_2\|^2
++
+\operatorname{tr}
+\left[
+\Sigma_1+\Sigma_2
+-
+2(\Sigma_1^{1/2}
+\Sigma_2
+\Sigma_1^{1/2})^{1/2}
+\right]
+\]
+
+Return:
+
+\[
+W_2(P,Q)=\sqrt{W_2^2(P,Q)}
+\]
+
+Requirements:
+
+- Use symmetric matrix square roots.
+- Use eigendecomposition or another numerically stable PSD square-root method.
+- Handle small negative eigenvalues caused by numerical roundoff.
+- Reject materially invalid covariance matrices.
+
+### 6.3 Mahalanobis distance
+
+Implement the pooled-covariance Mahalanobis distance:
+
+\[
+\Sigma_{\text{pool}}
+=
+\frac{\Sigma_1+\Sigma_2}{2}
+\]
+
+\[
+D_M(P,Q)
+=
+\sqrt{
+(\mu_1-\mu_2)^T
+\Sigma_{\text{pool}}^{-1}
+(\mu_1-\mu_2)
+}
+\]
+
+Important:
+
+This measure compares mean separation normalized by pooled covariance. It is **not a complete distribution distance** because it does not independently account for covariance differences.
+
+Document this limitation in the README and benchmark results.
+
+### 6.4 Symmetric KL divergence
+
+Implement:
+
+\[
+D_{\text{SKL}}(P,Q)
+=
+\frac12
+\left[
+KL(P\|Q)+KL(Q\|P)
+\right]
+\]
+
+For Gaussian distributions:
+
+\[
+D_{\text{SKL}}
+=
+\frac14
+\left[
+\operatorname{tr}
+\left(
+\Sigma_2^{-1}\Sigma_1
++
+\Sigma_1^{-1}\Sigma_2
+\right)
+-2d
++
+\Delta\mu^T
+\left(
+\Sigma_1^{-1}
++
+\Sigma_2^{-1}
+\right)
+\Delta\mu
+\right]
+\]
+
+where \(d=3\).
+
+Requirements:
+
+- Symmetric
+- Nonnegative up to numerical tolerance
+- Zero for identical distributions
+- Clearly identified as a divergence rather than a metric
+
+It does not generally satisfy the triangle inequality.
+
+---
+
+## 7. GMM Distance Calculation
+
+For GMMs:
+
+\[
+P=\sum_{i=1}^{M}\alpha_iP_i
+\]
+
+\[
+Q=\sum_{j=1}^{N}\beta_jQ_j
+\]
+
+Implement a component-coupling formulation using linear programming.
+
+### 7.1 Component cost matrix
+
+Construct:
+
+\[
+C_{ij}=d(P_i,Q_j)
+\]
+
+where \(d\) is the selected Gaussian-level distance.
+
+### 7.2 Optimal transport coupling
+
+Solve:
+
+\[
+\min_{w_{ij}}
+\sum_{i=1}^{M}
+\sum_{j=1}^{N}
+w_{ij}C_{ij}
+\]
+
+subject to:
+
+\[
+\sum_jw_{ij}=\alpha_i
+\]
+
+\[
+\sum_iw_{ij}=\beta_j
+\]
+
+\[
+w_{ij}\geq0
+\]
+
+Use:
+
+```python
+scipy.optimize.linprog
+```
+
+Use the HiGHS solver.
+
+### 7.3 Interpretation
+
+For Wasserstein, this component-coupling construction provides a GMM transport approximation based on Gaussian component costs.
+
+For Hellinger and symmetric KL, the component-coupling approach is a component-level comparison or approximation. It is **not generally equal to the exact Hellinger distance or exact symmetric KL divergence between the full GMM distributions**.
+
+Document these distinctions clearly.
+
+For Mahalanobis, the component coupling similarly defines a component-level comparison based on the chosen Gaussian Mahalanobis cost.
+
+---
+
+## 8. Synthetic Catalogue Generation
+
+Generate 2,000 RSOs.
+
+### 8.1 Nominal positions
+
+Generate nominal positions uniformly within a configurable 3D cube:
+
+\[
+\mathbf{r}_i\sim
+\mathcal{U}([-L,L]^3)
+\]
+
+Default:
+
+\[
+L=1000\ \text{km}
+\]
+
+Make the cube size configurable.
+
+### 8.2 GMM generation
+
+For each RSO:
+
+- Generate \(M\) Gaussian components.
+- Use \(M=3\) by default.
+- Generate component weights and normalize them.
+- Generate component means near the RSO nominal position.
+- Generate valid 3D covariance matrices.
+
+A suitable covariance generation approach is:
+
+\[
+\Sigma=AA^T+\epsilon I
+\]
+
+where:
+
+- \(A\) is a randomly generated matrix.
+- \(\epsilon>0\) ensures positive definiteness.
+
+Component means may be generated using:
+
+\[
+\mu_j=\mathbf{r}_{nominal}+\delta_j
+\]
+
+where \(\delta_j\) is a configurable random offset.
+
+### 8.3 Reproducibility
+
+Use a single controlled random generator:
+
+```python
+rng = np.random.default_rng(seed)
+```
+
+Default:
+
+```text
+seed = 42
+```
+
+The generated catalogue must be reusable across all distance metrics.
+
+---
+
+## 9. K-D Tree Construction
+
+### 9.1 Spatial indexing
+
+Construct the K-d tree using **nominal 3D positions**, not GMM component means.
+
+Each node should contain:
+
+- AABB lower bound
+- AABB upper bound
+- Split axis
+- Split value
+- Parent pointer
+- Left child
+- Right child
+- RSOs stored in the node if it is a leaf
+
+### 9.2 Split strategy
+
+At each internal node:
+
+1. Compute the spatial spread along each dimension.
+2. Select the dimension with the largest spread.
+3. Split at the median nominal position along that dimension.
+4. Recursively construct child nodes.
+
+Make leaf size configurable.
+
+Default:
+
+```text
+leaf_size = 10
+```
+
+### 9.3 AABB geometry
+
+Implement Euclidean distance from a query point \(\mathbf{x}\) to an axis-aligned bounding box.
+
+For each dimension \(i\):
+
+\[
+\delta_i=
+\begin{cases}
+l_i-x_i & x_i<l_i\\
+0 & l_i\leq x_i\leq u_i\\
+x_i-u_i & x_i>u_i
+\end{cases}
+\]
+
+Then:
+
+\[
+D_{\text{AABB}}(\mathbf{x})
+=
+\sqrt{\sum_i\delta_i^2}
+\]
+
+This function belongs in the spatial geometry module.
+
+---
+
+## 10. K-D Tree KNN Search
+
+### 10.1 Search procedure
+
+Implement the KNN algorithm:
+
+1. Start at the root node.
+2. Descend to the leaf containing the query nominal position.
+3. Evaluate candidate RSOs in the leaf.
+4. Exclude the query RSO itself.
+5. Calculate probabilistic distances using the selected metric.
+6. Maintain the current K best candidates.
+7. Backtrack to parent nodes.
+8. Evaluate neighboring or sibling nodes when required.
+9. Use AABB distances and a spatial pruning threshold to decide whether to open nodes.
+10. Return the K candidates sorted by probabilistic distance.
+
+### 10.2 Candidate list
+
+Maintain a structure containing:
+
+```text
+object_id
+probabilistic_distance
+nominal_euclidean_distance
+```
+
+The candidate list must be sorted by:
+
+1. Probabilistic distance
+2. Object identifier for deterministic tie-breaking
+
+### 10.3 Spatial pruning strategy
+
+Implement the Mercurio–Singla-inspired Euclidean pruning heuristic.
+
+Generalize the Euclidean threshold to KNN:
+
+\[
+D_{E,K}
+\]
+
+where \(D_{E,K}\) is the K-th smallest nominal Euclidean distance among the evaluated candidate objects.
+
+Use a rule such as:
+
+\[
+D_{\text{AABB}}<D_{E,K}
+\]
+
+to determine whether a node should be opened.
+
+Keep this pruning rule isolated in a dedicated method so alternative strategies can be implemented later.
+
+**Critical caveat:** This is a spatial heuristic. It does not provide a guaranteed lower bound on Wasserstein, Mahalanobis, Hellinger, or KL distances between GMMs.
+
+Consequently, it may prune objects that are among the true probabilistic K nearest neighbors.
+
+Do not conflate:
+
+- Euclidean candidate pruning
+- Probabilistic distance ranking
+
+### 10.4 Instrumentation
+
+Record:
+
+- Number of probabilistic distance evaluations
+- Number of tree nodes visited
+- Number of leaves visited
+- Number of nodes pruned
+- Query runtime
+
+These statistics are needed to assess the effectiveness of the K-d tree.
+
+---
+
+## 11. Brute-Force KNN
+
+Implement a separate reference algorithm.
+
+For each query RSO:
+
+1. Iterate through every other RSO.
+2. Calculate the selected probabilistic distance.
+3. Sort all candidates by probabilistic distance.
+4. Return the first K.
+
+Complexity:
+
+\[
+O(N^2)
+\]
+
+for all catalogue queries, ignoring the cost of individual GMM distance evaluations.
+
+Use brute force to validate K-d tree results.
+
+Do not reuse the K-d tree's pruning logic in brute force.
+
+---
+
+## 12. Command-Line Interface
+
+Implement:
+
+```bash
+python main.py \
+    --n-rso 2000 \
+    --k 10 \
+    --metric hellinger \
+    --components 3 \
+    --leaf-size 10 \
+    --seed 42
+```
+
+Supported arguments:
+
+| Argument | Description | Default |
+|---|---|---|
+| `--n-rso` | Number of RSOs | 2000 |
+| `--k` | Number of neighbors | 10 |
+| `--metric` | Probabilistic distance | `hellinger` |
+| `--components` | GMM components per RSO | 3 |
+| `--leaf-size` | K-d tree leaf size | 10 |
+| `--seed` | Random seed | 42 |
+| `--cube-size` | Position cube half-width, km | 1000 |
+| `--benchmark` | Run benchmark suite | False |
+
+Valid metric choices:
+
+```text
+wasserstein
+mahalanobis
+hellinger
+kl
+```
+
+---
+
+## 13. Output Format
+
+Save KNN results to CSV.
+
+Suggested columns:
+
+```text
+query_id
+neighbor_rank
+neighbor_id
+probabilistic_distance
+nominal_euclidean_distance
+metric
+component_count
+seed
+```
 
 Example:
 
-`python
-distance_metric = HellingerDistance()
+```text
+query_id,neighbor_rank,neighbor_id,probabilistic_distance,nominal_euclidean_distance,metric
+RSO_0001,1,RSO_0345,0.021,120.4,hellinger
+RSO_0001,2,RSO_1290,0.034,85.2,hellinger
+```
 
-screening = MercurioSinglaScreening(
-    tree=tree,
-    distance_metric=distance_metric,
-)
-`
-
-The screening algorithm must not import \HellingerDistance\ directly.
-
-The following metrics should eventually be interchangeable:
-- Hellinger distance
-- Bhattacharyya distance or coefficient-based dissimilarity
-- Mahalanobis distance
-- Wasserstein distance
-- Other user-defined probabilistic distances
-
-Do not implement all these metrics initially. Implement the interface and Hellinger first.
-
-**Important:** The metric interface must clearly distinguish the probabilistic distance from Euclidean mean-position distance, which is used for tree geometry.
+The CSV should contain the probabilistic ranking, not the Euclidean ranking.
 
 ---
 
+## 14. Benchmarking
 
-## 6. Probabilistic distance specification
+### 14.1 Benchmark scenarios
 
-Below is an implementable specification for four probabilistic distance measures designed to plug into the Mercurio Singla K-d tree implementation.
+Evaluate all four distance measures:
 
-The main design rule is to keep the probabilistic distance calculation independent of the K-d tree. The K-d tree can call any distance class through a common interface.
+- Wasserstein
+- Mahalanobis
+- Hellinger
+- Symmetric KL
 
-One important distinction: in Mercurio Singla, Hellinger is a distance between probability distributions. Mahalanobis distance is fundamentally a distance between vectors, so we need to define how it compares two uncertainty distributions. I use a pooled-covariance formulation below and identify it as a chosen extension, rather than claiming it is the paper's definition.
+Use the same 2,000-RSO catalogue.
 
-### 1. Common interface
+Start with:
 
-from abc import ABC, abstractmethod
-
-class ProbabilisticDistance(ABC):
-
-    @abstractmethod
-    def compute(self, distribution_a, distribution_b) -> float:
-        Return a non-negative distance or dissimilarity.
-        raise NotImplementedError
-
-Suggested input representations:
-
-Gaussian(
-    mean: np.ndarray, shape (d,)
-    covariance: np.ndarray shape (d, d)
-)
-GaussianMixture(
-    weights: np.ndarray, shape (K,)
-    components: list[Gaussian])
-
-Assume both distributions describe the same random variable in the same coordinate system. For orbital applications, that means comparing distributions in a common representation for example, both Cartesian position distributions at the same epoch.
-
-For GMMs, use the component-level distance d_ij to construct a cost matrix, then apply the Mercurio Singla mixture LP:
-
-D(P,Q)=min_w_ij sum_i sum_j w_ij d_ij
-
-subject to
-
-sum_j w_ij = alpha_i, sum_i w_ij = beta_j, w_ij >= 0.
-
-This is an optimal-transport-style coupling of mixture weights. It is the mixture procedure described in the uploaded Mercurio Singla paper.
-
-### 2. Shared Gaussian and GMM utilities
-
-All four algorithms should use common validation and numerical utilities. Covariances must be symmetric positive definite for the Gaussian closed-form formulas below.
-
-import numpy as np
-from scipy.linalg import solve, eigh
-from scipy.optimize import linprog
-
-def validate_gaussian(mean, covariance):
-    mean = np.asarray(mean, dtype=float)
-    covariance = np.asarray(covariance, dtype=float)
-    if mean.ndim != 1:
-        raise ValueError Mean must be a 1D array.)
-    d = mean.size
-    if covariance.shape != (d, d):
-        raise ValueError Covariance shape must be (d, d).)
-    covariance = 0.5 * (covariance + covariance.T)
-    if not np.all(np.isfinite(mean)):
-        raise ValueError Mean contains non-finite values.)
-    if not np.all(np.isfinite(covariance)):
-        raise ValueError Covariance contains non-finite values.)
-    if np.min(np.linalg.eigvalsh(covariance)) <= 0:
-        raise ValueError Covariance must be positive definite.)
-    return mean, covariance
-
-def logdet_spd(matrix):
-    sign, value = np.linalg.slogdet(matrix)
-    if sign <= 0:
-        raise ValueError Matrix must have positive determinant.
-
-```
-import numpy as npfrom scipy.linalg import solve, eighfrom scipy.optimize import linprogdef validate_gaussian(mean, covariance):    mean = np.asarray(mean, dtype=float)    covariance = np.asarray(covariance, dtype=float)    if mean.ndim != 1:        raise ValueError("Mean must be a 1D array.")    d = mean.size    if covariance.shape != (d, d):        raise ValueError("Covariance shape must be (d, d).")    covariance = 0.5 * (covariance + covariance.T)    if not np.all(np.isfinite(mean)):        raise ValueError("Mean contains non-finite values.")    if not np.all(np.isfinite(covariance)):        raise ValueError("Covariance contains non-finite values.")    if np.min(np.linalg.eigvalsh(covariance)) <= 0:        raise ValueError("Covariance must be positive definite.")    return mean, covariancedef logdet_spd(matrix):    sign, value = np.linalg.slogdet(matrix)    if sign <= 0:        raise ValueError("Matrix must have positive determinant.")
+```text
+N = 2000
+K = 10
+M = 3
+leaf_size = 10
+seed = 42
 ```
 
-The code below assumes each Gaussian is represented as a tuple:
+Then evaluate component counts:
 
-```
-(mean, covariance)
-```
-
-# 3. Hellinger distance
-
-## 3.1 Gaussian formulation
-
-For two Gaussian distributions,
-
-\\[ P=\mathcal N(\mu_1,\Sigma_1),\qquad Q=\mathcal N(\mu_2,\Sigma_2), \\]
-
-define
-
-\\[ \bar{\Sigma}=\frac{\Sigma_1+\Sigma_2}{2}, \qquad \Delta\mu=\mu_1-\mu_2. \\]
-
-The Bhattacharyya coefficient is
-
-\\[ BC(P,Q)= \frac{|\Sigma_1|^{1/4}|\Sigma_2|^{1/4}} {|\bar{\Sigma}|^{1/2}} \exp\left( -\frac18\Delta\mu^T\bar{\Sigma}^{-1}\Delta\mu \right). \\]
-
-Then the Hellinger distance used by Mercurio–Singla is
-
-\\[ \boxed{D_H(P,Q)=\sqrt{1-BC(P,Q)}}. \\]
-
-It ranges from 0 to 1 for continuous probability distributions. It is symmetric and satisfies the triangle inequality.&#x20;
-
-Mercurio_Singla_KD_Tree_based approack for efficient and accurate conjunction.pdf
-
-
-
-## 3.2 Implementable Gaussian algorithm
-
-```
-class HellingerDistance(ProbabilisticDistance):    def gaussian(self, gaussian_a, gaussian_b):        mu1, S1 = validate_gaussian(*gaussian_a)        mu2, S2 = validate_gaussian(*gaussian_b)        delta = mu1 - mu2        Sbar = 0.5 * (S1 + S2)        # log of determinant factor        log_bc = (            0.25 * logdet_spd(S1)            + 0.25 * logdet_spd(S2)            - 0.50 * logdet_spd(Sbar)        )        # delta.T @ inv(Sbar) @ delta, without explicitly inverting        quadratic = delta @ solve(Sbar, delta, assume_a="pos")        log_bc -= 0.125 * quadratic        # Numerical safety        bc = np.exp(min(log_bc, 0.0))        bc = np.clip(bc, 0.0, 1.0)        return np.sqrt(max(0.0, 1.0 - bc))    def compute(self, distribution_a, distribution_b):        return self.gaussian(distribution_a, distribution_b)
+```text
+M = 1, 2, 3, 5
 ```
 
-## 3.3 GMM algorithm
+### 14.2 Performance metrics
 
-For
+Record:
 
-\\[ P=\sum\_{i=1}^{N}\alpha_iP_i,\qquad Q=\sum\_{j=1}^{M}\beta_jQ_j, \\]
+- K-d tree construction time
+- K-d tree total query time
+- Average query time
+- Brute-force total query time
+- Number of distance evaluations
+- Number of nodes visited
+- Number of leaves visited
+- Number of nodes pruned
+- Mean Recall@K
+- Minimum Recall@K
+- Mean difference between K-d tree and brute-force neighbor distances
 
-calculate each Gaussian component distance:
+### 14.3 Benchmark table
 
-\\[ C\_{ij}=D_H(P_i,Q_j). \\]
+Generate a summary table:
 
-Then solve the LP:
+| Metric | GMM Components | K-D Tree Time | Brute Force Time | Recall@K | Distance Evaluations |
+|---|---:|---:|---:|---:|---:|
+| Hellinger | 3 | | | | |
+| Wasserstein | 3 | | | | |
+| Mahalanobis | 3 | | | | |
+| Symmetric KL | 3 | | | | |
 
-\\[ \min\_{w\_{ij}}\sum\_{i,j}w\_{ij}C\_{ij} \\]
+Use measured values only.
 
-subject to the mixture-weight constraints.
+Do not fabricate benchmark results.
 
-This follows the component-coupling method described in the paper.&#x20;
+---
 
-Mercurio_Singla_KD_Tree_based approack for efficient and accurate conjunction.pdf
+## 15. Testing
 
+### 15.1 Gaussian distance tests
 
+For every Gaussian-level distance:
 
-### Generic GMM LP
+- Identical distributions should return zero.
+- Distances should be nonnegative within numerical tolerance.
+- Symmetric distances should satisfy \(D(P,Q)=D(Q,P)\).
+- Invalid covariance matrices should be rejected or handled explicitly.
+- Test different means and covariance matrices.
 
-```
-def gmm_lp_distance(weights_a, components_a,                    weights_b, components_b,                    component_distance):    alpha = validate_gmm(weights_a, components_a)    beta = validate_gmm(weights_b, components_b)    N = len(components_a)    M = len(components_b)    # Component cost matrix    C = np.empty((N, M))    for i in range(N):        for j in range(M):            C[i, j] = component_distance(                components_a[i],                components_b[j]            )    # LP variables are w_ij, flattened    c = C.ravel()    A_eq = []    b_eq = []    # Each row of the coupling sums to alpha_i    for i in range(N):        row = np.zeros((N, M))        row[i, :] = 1.0        A_eq.append(row.ravel())        b_eq.append(alpha[i])    # Each column sums to beta_j    for j in range(M):        row = np.zeros((N, M))
-```
+### 15.2 GMM tests
 
-For the Hellinger GMM calculation:
+Verify:
 
-```
-hellinger = HellingerDistance()D = gmm_lp_distance(    weights_a, components_a,    weights_b, components_b,    component_distance=hellinger.gaussian)
-```
+- GMM weights sum to one.
+- Component count is correct.
+- LP coupling constraints are satisfied.
+- Identical GMMs return zero for supported distance formulations.
+- GMM distance computation is deterministic.
 
-# 4. Wasserstein distance
+### 15.3 K-d tree tests
 
-## 4.1 Gaussian \\(2\\)-Wasserstein distance
+Verify:
 
-Use the \\(2\\)-Wasserstein distance, denoted \\(W_2\\). For Gaussian distributions, it has a closed-form solution:
+- All RSOs are represented in the tree.
+- Every RSO appears in exactly one leaf.
+- AABBs correctly contain their descendants.
+- Tree construction is deterministic for a fixed catalogue and seed.
+- Duplicate nominal positions do not break tree construction.
 
-\\[ P=\mathcal N(\mu_1,\Sigma_1),\quad Q=\mathcal N(\mu_2,\Sigma_2) \\]
+### 15.4 KNN tests
 
-\\[ \boxed{ W_2^2(P,Q)= \\|\mu_1-\mu_2\\|\_2^2+ \operatorname{tr}\left( \Sigma_1+\Sigma_2 -2(\Sigma_1^{1/2}\Sigma_2\Sigma_1^{1/2})^{1/2} \right) } \\]
+Verify:
 
-The distance is \\(W_2=\sqrt{W_2^2}\\).
+- Query RSO is not returned as its own neighbor.
+- Exactly K neighbors are returned when \(K\leq N-1\).
+- Results are sorted by probabilistic distance.
+- K=1 works.
+- K=N−1 works.
+- K larger than the number of available neighbors is handled gracefully.
+- Brute-force results match a manually computed small test case.
 
-Unlike Hellinger, Wasserstein incorporates both mean displacement and covariance shape/scale. Its units are the same as the units of the state variable. For example, position-only Wasserstein distance is in metres.
+### 15.5 Reproducibility tests
 
-## 4.2 Algorithm
+Verify that:
 
-1. Validate both means and covariances.
-2. Calculate the squared mean separation.
-3. Compute the symmetric positive-semidefinite square root of \\(\Sigma_1\\).
-4. Construct \\(\Sigma_1^{1/2}\Sigma_2\Sigma_1^{1/2}\\).
-5. Compute its square root.
-6. Evaluate the trace expression.
-7. Clip tiny negative values caused by floating-point error to zero.
-8. Return the square root.
+- The same seed produces the same catalogue.
+- Metric switching does not regenerate the catalogue.
+- Repeated runs produce identical results for deterministic algorithms.
 
-```
-def matrix_sqrt_psd(A, tolerance=1e-10):    A = 0.5 * (A + A.T)    eigenvalues, eigenvectors = eigh(A)    if eigenvalues.min() < -tolerance:        raise ValueError("Matrix is not positive semidefinite.")    eigenvalues = np.clip(eigenvalues, 0.0, None)    return (        eigenvectors        @ np.diag(np.sqrt(eigenvalues))        @ eigenvectors.T    )class WassersteinDistance(ProbabilisticDistance):    def gaussian_squared(self, gaussian_a, gaussian_b):        mu1, S1 = validate_gaussian(*gaussian_a)        mu2, S2 = validate_gaussian(*gaussian_b)        delta = mu1 - mu2        mean_term = delta @ delta        S1_sqrt = matrix_sqrt_psd(S1)        middle = S1_sqrt @ S2 @ S1_sqrt        middle_sqrt = matrix_sqrt_psd(middle)        covariance_term = np.trace(            S1 + S2 - 2.0 * middle_sqrt        )        return max(0.0, mean_term + covariance_term)    def gaussian(self, gaussian_a, gaussian_b):        return np.sqrt(            self.gaussian_squared(gaussian_a, gaussian_b)        )    def compute(self, distribution_a, distribution_b):        return self.gaussian(distribution_a, distribution_b)
-```
+---
 
-## 4.3 GMM Wasserstein approximation
+## 16. Dependencies
 
-The exact Wasserstein distance between two arbitrary GMMs is generally not obtained simply by comparing Gaussian components. A practical approximation for this project is to transport the mixture weights between Gaussian components.
+Use:
 
-First compute:
-
-\\[ C\_{ij}=W_2^2(P_i,Q_j). \\]
-
-Then solve:
-
-\\[ \min\_{w\_{ij}}\sum\_{ij}w\_{ij}W_2^2(P_i,Q_j) \\]
-
-subject to the mixture coupling constraints.
-
-This is an optimal transport between mixture components, using Gaussian \\(W_2^2\\) as the ground cost. It is not generally the exact Wasserstein distance between the full continuous GMM PDFs.
-
-```
-def gmm_wasserstein(weights_a, components_a,                    weights_b, components_b):    metric = WassersteinDistance()    return gmm_lp_distance(        weights_a, components_a,        weights_b, components_b,        component_distance=metric.gaussian_squared    )
-```
-
-Important: this function returns the optimal transport cost based on squared component distances. It does not take the square root of the final LP objective. If you want the conventional component-transport distance, use:
-
-```
-D_transport = np.sqrt(    gmm_wasserstein(        weights_a, components_a,        weights_b, components_b    ))
-```
-
-Keep both conventions explicit in the API or documentation.
-
-# 5. Mahalanobis distance
-
-## 5.1 Definition for uncertainty distributions
-
-Mahalanobis distance normally measures separation between vectors:
-
-\\[ D_M(x,y)= \sqrt{(x-y)^T\Sigma^{-1}(x-y)}. \\]
-
-For two uncertain RSOs, we need to decide what covariance \\(\Sigma\\) should represent. A reasonable, implementable choice is the pooled covariance:
-
-\\[ \Sigma\_{\mathrm{pool}}=\frac{\Sigma_1+\Sigma_2}{2}. \\]
-
-Then define the distribution-level dissimilarity:
-
-\\[ \boxed{ D_M(P,Q)= \sqrt{ (\mu_1-\mu_2)^T \Sigma\_{\mathrm{pool}}^{-1} (\mu_1-\mu_2) } } \\]
-
-Interpretation: mean separation measured in units of the combined uncertainty.
-
-This is useful for orbital screening because it answers a question like:
-
-> How many pooled standard deviations apart are the two mean positions?
-
-However, it does not fully compare the distributions. Two distributions with identical means but different covariances receive distance zero.
-
-## 5.2 Algorithm
-
-1. Calculate \\(\Delta\mu=\mu_1-\mu_2\\).
-2. Form the pooled covariance.
-3. Solve \\(\Sigma\_{\mathrm{pool}}z=\Delta\mu\\).
-4. Compute \\(\sqrt{\Delta\mu^Tz}\\).
-
-```
-class MahalanobisDistance(ProbabilisticDistance):    def gaussian(self, gaussian_a, gaussian_b):        mu1, S1 = validate_gaussian(*gaussian_a)        mu2, S2 = validate_gaussian(*gaussian_b)        delta = mu1 - mu2        S_pool = 0.5 * (S1 + S2)        z = solve(S_pool, delta, assume_a="pos")        squared_distance = delta @ z        return np.sqrt(max(0.0, squared_distance))    def compute(self, distribution_a, distribution_b):        return self.gaussian(distribution_a, distribution_b)
+```text
+Python >= 3.11
+NumPy
+SciPy
+pandas
+Matplotlib
+pytest
 ```
 
-## 5.3 GMM version
+Use:
 
-For the LP-based mixture comparison, calculate:
+- NumPy for array operations
+- SciPy for linear algebra and LP optimization
+- pandas for CSV and benchmark tables
+- Matplotlib for benchmark plots
+- pytest for testing
 
-\\[ C\_{ij}=D_M(P_i,Q_j) \\]
+Do not use scikit-learn for the K-d tree implementation. Implement the tree directly to retain control over the spatial pruning algorithm and instrumentation.
 
-between every pair of Gaussian component means, using their pooled covariance.
+---
 
-```
-def gmm_mahalanobis(weights_a, components_a,                    weights_b, components_b):    metric = MahalanobisDistance()    return gmm_lp_distance(        weights_a, components_a,        weights_b, components_b,        component_distance=metric.gaussian    )
-```
+## 17. Required Deliverables
 
-### Limitation to document
+Produce:
 
-The pooled covariance makes the Mahalanobis distance uncertainty-aware, but it remains a mean-separation metric. It is not a full distribution distance and does not satisfy all properties of a metric over Gaussian distributions.
+1. Complete Python package.
+2. Gaussian and GMM data models.
+3. Four Gaussian-level distance implementations.
+4. GMM component-coupling distance implementations.
+5. Modular distance factory.
+6. K-d tree implementation.
+7. Euclidean AABB geometry module.
+8. Probabilistic KNN search.
+9. Brute-force KNN reference implementation.
+10. Synthetic catalogue generator.
+11. CLI.
+12. CSV neighbor results.
+13. Benchmark suite.
+14. Recall@K evaluation.
+15. Unit tests.
+16. README with installation, usage, mathematical assumptions, and limitations.
 
-For this reason, I would treat it as an experimental ranking measure rather than a direct replacement for Hellinger.
+---
 
-# 6. Symmetric KL divergence
+## 18. Final Acceptance Criteria
 
-## 6.1 Definition
+The implementation is complete when:
 
-The Kullback–Leibler divergence is asymmetric:
+- It generates 2,000 reproducible RSOs with 3D GMM uncertainty.
+- GMM component count can be changed to 1, 2, 3, or 5.
+- All four distance measures can be selected through a CLI argument.
+- The same catalogue is used for every metric.
+- KNN results are ranked by probabilistic distance.
+- Brute-force results are available for validation.
+- K-d tree performance and Recall@K are reported.
+- Euclidean pruning is explicitly identified as a heuristic unless proven exact.
+- GMM distance approximations are documented.
+- Results are saved to CSV.
+- Tests pass.
 
-\\[ D\_{\mathrm{KL}}(P\\|Q)\neq D\_{\mathrm{KL}}(Q\\|P). \\]
-
-A common symmetrization is the average KL divergence, also called the half-Jeffreys divergence:
-
-\\[ \boxed{ D\_{\mathrm{SKL}}(P,Q) =\frac12\left[ D\_{\mathrm{KL}}(P\\|Q)+ D\_{\mathrm{KL}}(Q\\|P) \right] } \\]
-
-This is symmetric and non-negative, but it is not a metric because it does not generally satisfy the triangle inequality.
-
-Mercurio–Singla specifically note the symmetry and triangle-inequality limitations of KL divergence.&#x20;
-
-Mercurio_Singla_KD_Tree_based approack for efficient and accurate conjunction.pdf
-
-
-
-## 6.2 Gaussian closed-form expression
-
-For two Gaussians in \\(d\\) dimensions, define
-
-\\[ \Delta\mu=\mu_1-\mu_2. \\]
-
-The KL divergence is
-
-\\[ D\_{\mathrm{KL}}(P\\|Q) =\frac12\left[ \log\frac{|\Sigma_2|}{|\Sigma_1|} +\operatorname{tr}(\Sigma_2^{-1}\Sigma_1) -d +\Delta\mu^T\Sigma_2^{-1}\Delta\mu \right]. \\]
-
-After symmetrization, the log-determinant terms cancel:
-
-\\[ \boxed{ D\_{\mathrm{SKL}}(P,Q)= \frac14\left[ \operatorname{tr}(\Sigma_2^{-1}\Sigma_1+                   \Sigma_1^{-1}\Sigma_2) -2d +\Delta\mu^T(\Sigma_1^{-1}+\Sigma_2^{-1})\Delta\mu \right] } \\]
-
-This is a divergence, not a distance in the strict metric sense. Its value is unbounded above.
-
-## 6.3 Algorithm
-
-1. Validate means and covariance matrices.
-2. Calculate \\(\Delta\mu\\).
-3. Solve for \\(\Sigma_1^{-1}\Sigma_2\\) and \\(\Sigma_2^{-1}\Sigma_1\\) using linear solves.
-4. Compute trace terms.
-5. Compute the mean-separation term.
-6. Combine the terms.
-
-```
-class SymmetricKLDistance(ProbabilisticDistance):    def gaussian(self, gaussian_a, gaussian_b):        mu1, S1 = validate_gaussian(*gaussian_a)        mu2, S2 = validate_gaussian(*gaussian_b)        d = len(mu1)        delta = mu1 - mu2        # Tr(S2^-1 S1)        trace_21 = np.trace(            solve(S2, S1, assume_a="pos")        )        # Tr(S1^-1 S2)        trace_12 = np.trace(            solve(S1, S2, assume_a="pos")        )        # delta.T @ S1^-1 @ delta        mean_term_1 = delta @ solve(            S1, delta, assume_a="pos"        )        # delta.T @ S2^-1 @ delta        mean_term_2 = delta @ solve(            S2, delta, assume_a="pos"        )        value = 0.25 * (            trace_21 + trace_12 - 2.0 * d            + mean_term_1 + mean_term_2        )        return max(0.0, value)
-```
-
-## 6.4 GMM version
-
-For each component pair, calculate
-
-\\[ C\_{ij}=D\_{\mathrm{SKL}}(P_i,Q_j). \\]
-
-Then use the same mixture LP:
-
-```
-def gmm_symmetric_kl(weights_a, components_a,                     weights_b, components_b):    metric = SymmetricKLDistance()    return gmm_lp_distance(        weights_a, components_a,        weights_b, components_b,        component_distance=metric.gaussian    )
-```
-
-Terminology note: this LP-based GMM result is a component-coupled symmetric-KL dissimilarity. It is not generally equal to the symmetric KL divergence between the full mixture PDFs.
-
-# 7. Unified comparison table
-
-| Measure               | Mean separation | Covariance difference       | Range            | Metric?                | Gaussian closed form |
-| --------------------- | --------------- | --------------------------- | ---------------- | ---------------------- | -------------------- |
-| Hellinger             | Yes             | Yes                         | \\([0,1]\\)      | Yes                    | Yes                  |
-| \\(W_2\\) Wasserstein | Yes             | Yes                         | \\([0,\infty)\\) | Yes                    | Yes                  |
-| Pooled Mahalanobis    | Yes             | Through pooled scaling only | \\([0,\infty)\\) | Not over distributions | Yes                  |
-| Symmetric KL          | Yes             | Yes                         | \\([0,\infty)\\) | No triangle inequality | Yes                  |
-
-For the K-d tree experiment, the measures provide different notions of similarity:
-
-- Hellinger: PDF overlap / similarity.
-- Wasserstein: distributional displacement, with covariance shape contributing.
-- Mahalanobis: normalized mean separation.
-- Symmetric KL: information divergence, penalizing mismatch in means and covariance.
-
-## 8. Recommended project structure
-
-```
-src/distances/
-├── base.py
-├── hellinger.py
-├── wasserstein.py
-├── mahalanobis.py
-├── symmetric_kl.py
-├── gmm_transport.py
-└── factory.py
-```
-
-Keep Gaussian component calculations separate from GMM coupling. This allows each distance class to expose its Gaussian implementation, while `gmm_transport.py` handles the mixture-level LP.
-
-A factory could be:
-
-```
-def get_distance(name):    distances = {        "hellinger": HellingerDistance,        "wasserstein": WassersteinDistance,        "mahalanobis": MahalanobisDistance,        "symmetric_kl": SymmetricKLDistance,    }    try:        return distances[name.lower()]()    except KeyError:        raise ValueError(f"Unknown distance measure: {name}")
-```
+The implementation should prioritize **correct modular design, reproducibility, and transparent accuracy evaluation** over premature optimization.
