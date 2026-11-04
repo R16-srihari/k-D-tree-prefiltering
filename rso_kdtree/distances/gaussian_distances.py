@@ -14,9 +14,9 @@ from __future__ import annotations
 
 import numpy as np
 from numpy.linalg import slogdet
-from scipy.linalg import solve, inv
+from scipy.linalg import inv, solve
 
-from .base import ProbabilisticDistance, SUPPORTED_METRICS
+from .base import SUPPORTED_METRICS, ProbabilisticDistance
 
 
 def _validate_gaussian(mean: np.ndarray, cov: np.ndarray) -> tuple[np.ndarray, np.ndarray]:

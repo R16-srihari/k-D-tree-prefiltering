@@ -117,7 +117,7 @@ def run_single(config: argparse.Namespace) -> None:
     positions = np.array([r.nominal_position for r in catalogue])
     object_ids = [r.object_id for r in catalogue]
 
-    kd_tree = build_kdtree(positions, leaf_size=config.leaf_size)
+    kd_tree = build_kdtree(positions, catalogue, leaf_size=config.leaf_size)
 
     k = min(config.k, config.n_rso - 1)
 

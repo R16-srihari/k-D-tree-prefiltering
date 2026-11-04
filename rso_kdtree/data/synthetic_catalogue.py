@@ -2,11 +2,15 @@
 
 Generates a reproducible catalogue of RSOs with nominal 3D positions and
 3D Gaussian Mixture Model (GMM) positional uncertainty, following the
-Mercurio report specifications:
+Mercurio thesis (§4) and Mercurio & Singla (2016) specifications:
 
 - RSO positions: spherical shell between 6,500 and 8,000 km from origin
-- Diagonal covariance matrices with variances between 1,000 and 10,000 km^2
-- GMM with 6 components with equal weights
+- Diagonal covariance matrix Σ with variances between var_min and var_max km^2
+- GMM with exactly 6 components (2·N for N=3 dimensions)
+- Component means: µ ± (√(3Σ))_i for i=1,2,3, where (√(3Σ))_i is the i-th
+  column of the matrix square root of 3·Σ
+- Component covariance: Σ/3 (per Mercurio thesis §4)
+- Equal weights 1/6 each
 
 The same catalogue is reused across all distance metrics to ensure fair
 metric comparisons.
@@ -28,6 +32,17 @@ def _generate_diagonal_covariance(rng: np.random.Generator, var_min: float, var_
     """
     variances = rng.uniform(var_min, var_max, size=3)
     return np.diag(variances)
+
+
+def _matrix_sqrtm(matrix: np.ndarray) -> np.ndarray:
+    """Symmetric matrix square root via eigendecomposition.
+
+    Clamps small negative eigenvalues from numerical roundoff to zero.
+    """
+    eigenvalues, eigenvectors = np.linalg.eigh(matrix)
+    eigenvalues = np.clip(eigenvalues, 0.0, None)
+    sqrt_eigenvalues = np.sqrt(eigenvalues)
+    return (eigenvectors * sqrt_eigenvalues) @ eigenvectors.T
 
 
 def _sample_spherical_shell(rng: np.random.Generator, r_min: float, r_max: float, n: int) -> np.ndarray:
@@ -55,14 +70,22 @@ def generate_synthetic_catalogue(
     var_min: float = 1000.0,
     var_max: float = 10000.0,
 ) -> list[RSO]:
-    """Generate a synthetic catalogue of RSOs with GMM uncertainty per Mercurio report.
+    """Generate a synthetic catalogue of RSOs with GMM uncertainty per Mercurio.
+
+    Follows Mercurio thesis §4 / 2016 paper §3:
+
+    - Component means: χ_i = µ + (√(3Σ))_i and χ_{i+3} = µ − (√(3Σ))_i
+      for i = 1, 2, 3, yielding 6 components in 3D.
+    - Component covariance: Σ/3 (per thesis §4).
+    - Equal weights 1/6 each.
 
     Parameters
     ----------
     n_rso : int
         Number of RSOs to generate.
     n_components : int
-        Number of Gaussian components per RSO (M=6 per Mercurio).
+        Number of Gaussian components per RSO. Must equal 6 per Mercurio;
+        any other value raises ValueError.
     r_min : float
         Minimum distance from origin (km). Default 6500 km.
     r_max : float
@@ -78,7 +101,17 @@ def generate_synthetic_catalogue(
     -------
     list[RSO]
         Catalogue of RSOs with nominal positions and GMM uncertainty.
+
+    Raises
+    ------
+    ValueError
+        If n_components != 6 (Mercurio requires exactly 6 components).
     """
+    if n_components != 6:
+        raise ValueError(
+            f"n_components must be 6 per Mercurio specification, got {n_components}"
+        )
+
     rng = np.random.default_rng(seed)
 
     # Nominal positions uniformly in spherical shell [r_min, r_max]
@@ -86,24 +119,38 @@ def generate_synthetic_catalogue(
 
     rsos: list[RSO] = []
 
-    # Equal weights for all components (per Mercurio)
-    weights = np.ones(n_components) / n_components
+    # Equal weights: 1/6 each (per Mercurio)
+    weights = np.ones(6) / 6.0
 
     for i in range(n_rso):
         object_id = f"RSO_{i:04d}"
         nominal_position = positions[i]
 
-        # Generate components
+        # Generate diagonal covariance Σ with variances in [var_min, var_max]
+        Sigma = _generate_diagonal_covariance(rng, var_min, var_max)
+
+        # Compute matrix square root of 3·Σ via eigendecomposition
+        # (√(3Σ))_i = i-th column of sqrtm(3·Σ)
+        sqrt_3Sigma = _matrix_sqrtm(3.0 * Sigma)
+
+        # Create 6 components: means µ ± δ_i for i = 1, 2, 3
         components: list[GaussianComponent] = []
-        for j in range(n_components):
-            # Component mean near nominal position (small perturbation)
-            # Using a small spread relative to orbital radius
-            mean = nominal_position + rng.normal(0.0, 10.0, size=3)
-
-            # Diagonal covariance matrix with variances in [var_min, var_max]
-            cov = _generate_diagonal_covariance(rng, var_min, var_max)
-
-            components.append(GaussianComponent(mean=mean, covariance=cov))
+        for j in range(3):
+            delta = sqrt_3Sigma[:, j]
+            # Plus direction: χ_j = µ + (√(3Σ))_j
+            components.append(
+                GaussianComponent(
+                    mean=nominal_position + delta,
+                    covariance=Sigma / 3.0,
+                )
+            )
+            # Minus direction: χ_{j+3} = µ − (√(3Σ))_j
+            components.append(
+                GaussianComponent(
+                    mean=nominal_position - delta,
+                    covariance=Sigma / 3.0,
+                )
+            )
 
         uncertainty = GaussianMixture(weights=weights, components=components)
 

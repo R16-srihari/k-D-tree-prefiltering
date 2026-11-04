@@ -31,7 +31,7 @@ class BenchmarkConfig:
     var_min: float = 1000.0
     var_max: float = 10000.0
     seed: int = 42
-    leaf_size: int = 10
+    leaf_size: int = 1
     metrics: list[str] | None = None
 
 
@@ -111,7 +111,7 @@ def run_benchmark(config: BenchmarkConfig | None = None) -> BenchmarkResults:
     object_ids = [r.object_id for r in catalogue]
 
     tree_start = time.perf_counter()
-    kd_tree = build_kdtree(positions, leaf_size=config.leaf_size)
+    kd_tree = build_kdtree(positions, catalogue, leaf_size=config.leaf_size)
     kdtree_build_time = time.perf_counter() - tree_start
 
     k = min(config.k, config.n_rso - 1)
