@@ -668,7 +668,7 @@ Make leaf size configurable.
 Default:
 
 ```text
-leaf_size = 10
+leaf_size = 1
 ```
 
 ### 9.3 AABB geometry
@@ -809,8 +809,8 @@ python main.py \
     --n-rso 2000 \
     --k 10 \
     --metric hellinger \
-    --components 3 \
-    --leaf-size 10 \
+    --components 6 \
+    --leaf-size 1 \
     --seed 42
 ```
 
@@ -821,8 +821,8 @@ Supported arguments:
 | `--n-rso` | Number of RSOs | 2000 |
 | `--k` | Number of neighbors | 10 |
 | `--metric` | Probabilistic distance | `hellinger` |
-| `--components` | GMM components per RSO | 3 |
-| `--leaf-size` | K-d tree leaf size | 10 |
+| `--components` | GMM components per RSO | 6 |
+| `--leaf-size` | K-d tree leaf size | 1 |
 | `--seed` | Random seed | 42 |
 | `--cube-size` | Position cube half-width, km | 1000 |
 | `--benchmark` | Run benchmark suite | False |

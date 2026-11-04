@@ -88,6 +88,23 @@ The pooled-covariance Mahalanobis distance compares mean separation
 normalized by pooled covariance and does not independently account for
 covariance differences. It is not a complete distribution distance.
 
+## Benchmark Output (`benchmark.csv`)
+
+Running `python -m rso_kdtree.main --benchmark --output benchmark.csv` writes one row per distance metric with the following instrumentation columns:
+
+| Column | Definition |
+|--------|------------|
+| **Metric** | Distance measure used (`hellinger`, `kl`, `mahalanobis`, `wasserstein`). |
+| **GMM Components** | Number of Gaussian mixture components per RSO (default 6). |
+| **K-D Tree Time (s)** | Wall-clock time to run KD-tree KNN search across all query RSOs (tree build time excluded). |
+| **Brute Force Time (s)** | Wall-clock time to run brute-force KNN search across all query RSOs. |
+| **Recall@K** | Fraction of brute-force true K nearest neighbors recovered by the KD-tree, averaged across all queries: `|N_KD ∩ N_BF| / K`. |
+| **Distance Evaluations** | Total number of probabilistic distance computations performed across all queries (one per candidate RSO evaluated in a visited leaf). |
+| **Nodes Visited** | Total number of internal KD-tree nodes entered during traversal and backtracking across all queries. |
+| **Nodes Pruned** | Total number of sibling subtrees skipped because their AABB distance to the query (`D_box`) was not less than the current K-th Euclidean threshold (`DE_min`). |
+| **Leaves Visited** | Total number of leaf nodes whose RSOs were distance-evaluated across all queries. With `leaf_size=1` there are as many leaves as RSOs in the tree, but a single query can visit multiple leaves during backtracking, so this count is cumulative over all 100 queries and typically exceeds the number of RSOs. |
+| **Mean Distance Difference** | Mean absolute difference between KD-tree and brute-force probabilistic distances for neighbors found by **both** methods: `mean(|d_KD − d_BF|)` over the intersection of neighbor ID sets. Returns `0.0` when no neighbors overlap; since both methods use the same deterministic distance function, shared neighbors have identical distances and this value is `0.0`. |
+
 ## Testing
 
 ```bash
