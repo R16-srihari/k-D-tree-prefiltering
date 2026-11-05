@@ -16,7 +16,7 @@ class NeighborResult:
     probabilistic_distance: float
     nominal_euclidean_distance: float
 
-    def __lt__(self, other: "NeighborResult") -> bool:
+    def __lt__(self, other: NeighborResult) -> bool:
         if self.probabilistic_distance != other.probabilistic_distance:
             return self.probabilistic_distance < other.probabilistic_distance
         return self.object_id < other.object_id
