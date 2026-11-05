@@ -1,5 +1,0 @@
-Metric     , GMM Components, K-D Tree Time (s) , Brute Force Time (s), Recall@K          , Distance Evaluations, Nodes Visited, Nodes Pruned, Leaves Visited, Mean Distance Difference
-hellinger  ,              6, 50.03541980002774 ,    73.00527670001611, 0.6439999999999999,                 6368,          7576,         1208,           6468,                      0.0
-kl         ,              6, 11.339571099961177,    57.93115850002505, 0.996             ,                 1966,          2940,          974,           2066,                      0.0
-mahalanobis,              6,  9.041893700021319,    62.37115520000225, 0.998             ,                 1930,          2939,         1009,           2030,                      0.0
-wasserstein,              6,  6.708294800017029,    36.48066160001326, 1.0               ,                 1808,          2736,          928,           1908,                      0.0
