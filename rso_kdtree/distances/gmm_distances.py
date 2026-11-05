@@ -18,6 +18,8 @@ distribution-level distance.
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 from scipy.optimize import linprog
 
@@ -99,14 +101,38 @@ def gmm_distance(gmm_a, gmm_b, metric_name: str) -> float:
     -------
     float
         GMM distance.
+
+    Notes
+    -----
+    Per the algorithm note (Distance_formulae_algo.md), the transport
+    ground cost is the *squared* Gaussian distance for Wasserstein-2
+    (section 3.2: C_ij = W_2^2) and Mahalanobis (section 4.4:
+    C_ik = D_M^2). Wasserstein additionally takes a square root of the
+    optimal-transport objective; Mahalanobis does not.
     """
     distance_fn = get_gaussian_distance_fn(metric_name)
 
-    # Single-Gaussian shortcut: closed-form Gaussian distance
+    # Single-Gaussian shortcut: closed-form Gaussian distance.
     if gmm_a.is_single_gaussian() and gmm_b.is_single_gaussian():
         mu_a, cov_a = gmm_a.to_single_gaussian()
         mu_b, cov_b = gmm_b.to_single_gaussian()
-        return distance_fn(mu_a, cov_a, mu_b, cov_b)
+        value = distance_fn(mu_a, cov_a, mu_b, cov_b)
+        if metric_name == "mahalanobis":
+            # OT-Mahalanobis uses squared component cost and no square root,
+            # so a single component yields D_M^2.
+            return value * value
+        return value
 
     cost = _build_cost_matrix(gmm_a, gmm_b, distance_fn)
-    return _solve_ot_lp(cost, gmm_a.weights, gmm_b.weights)
+
+    # Squared component costs for Wasserstein-2 and Mahalanobis.
+    if metric_name in ("wasserstein", "mahalanobis"):
+        cost = cost * cost
+
+    result = _solve_ot_lp(cost, gmm_a.weights, gmm_b.weights)
+
+    if metric_name == "wasserstein":
+        # Mixture Wasserstein is [min Γ·C]^{1/2} with C = W_2^2.
+        result = math.sqrt(result)
+
+    return float(result)

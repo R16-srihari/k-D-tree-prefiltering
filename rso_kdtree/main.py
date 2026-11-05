@@ -89,7 +89,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--log-output",
         type=str,
-        default="benchmark_log.txt",
+        default="log.txt",
         help="Output text file path for benchmark log (includes settings and results)",
     )
     parser.add_argument(
