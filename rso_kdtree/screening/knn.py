@@ -1,20 +1,28 @@
-"""Probabilistic KNN search using exact Alg. 3 tree traversal.
+"""Probabilistic KNN search using exact Mercurio Algorithm 3 tree traversal.
 
-Implements Mercurio-Singla Algorithm 3 on a custom KD-tree:
+Implements Mercurio-Singla Algorithm 3 on a custom KD-tree, split into two
+phases exactly as described in the paper:
 
-1. Descend from root to the leaf containing the query position.
-2. Evaluate the leaf: compute probabilistic (DH) and Euclidean (DE)
-   distances for all RSOs in the leaf (excluding the query itself).
-   Maintain best-K list sorted by DH. Track DE_min = K-th smallest DE.
-3. Backtrack up the tree. For each ancestor's sibling subtree:
-   - Compute D_box = Euclidean distance from query to sibling's AABB.
-   - If D_box < DE_min: recursively search the sibling subtree.
-   - Else: prune (skip the subtree).
-4. Continue up to root, repeating step 3 for each ancestor.
-5. Return best-K list sorted by probabilistic distance.
+Phase 1 - Bootstrap (Alg. 3 steps 3-6):
+  1. Descend from root to the leaf containing the query position.
+2. Evaluate that leaf (Hellinger + Euclidean for each RSO it contains).
+  3. Traverse up the tree via parent pointers. At each ancestor, open the
+     sibling subtree and evaluate its contents. Continue opening boxes
+     going up until the best-K list holds k candidates (or the tree is
+     exhausted).  No distance pruning is applied in this phase because
+     DE_min is undefined until k candidates exist.
+  4. Store DH_min and DE_min (DE_min = K-th smallest Euclidean distance
+     among the current best-K).
 
-Node-level instrumentation tracks nodes_visited, nodes_pruned, and
-leaves_visited during traversal.
+Phase 2 - Pruning (Alg. 3 steps 7-8):
+  5. Traverse the tree from the root. For every box not yet opened:
+     - Compute D_box = Euclidean distance from the query to the box's AABB.
+     - If D_box < DE_min: open the box, evaluate its RSOs, update DE_min.
+     - Else: prune the box.
+
+The implementation follows Alg. 3 with a distinct bootstrap phase
+(open boxes until k candidates are found) followed by a pruning phase
+(open remaining boxes only when D_box < DE_min).
 """
 
 from __future__ import annotations
@@ -53,6 +61,13 @@ def probabilistic_knn(
 ) -> tuple[KNNResult, KNNSearchStats]:
     """Probabilistic KNN search using exact Alg. 3 tree traversal.
 
+    Two phases per Mercurio-Singla Algorithm 3:
+      Phase 1 (bootstrap): descend to query leaf, evaluate it, then walk
+      up via parent pointers opening sibling boxes until k candidates are
+      collected (no distance pruning yet).
+      Phase 2 (pruning): traverse remaining boxes from root, opening only
+      those with D_box < DE_min.
+
     Parameters
     ----------
     query_rso : RSO
@@ -87,6 +102,9 @@ def probabilistic_knn(
     leaves_visited = 0
     nodes_pruned = 0
 
+    # Track opened boxes so they are not re-evaluated in the pruning phase.
+    visited: set[int] = set()
+
     # Build object_id -> index map (avoids fragile string parsing of object_id)
     object_id_to_index = {r.object_id: i for i, r in enumerate(all_rsos)}
     _ = object_id_to_index[query_rso.object_id]  # validate query is in catalogue
@@ -100,8 +118,13 @@ def probabilistic_knn(
         )
 
     def _de_min() -> float:
-        """K-th smallest Euclidean distance among evaluated candidates, or inf."""
-        if len(best) < k:
+        """K-th smallest Euclidean distance among evaluated candidates, or inf.
+
+        This is the DE_min threshold of Alg. 3 step 6/8. While fewer than
+        k candidates have been found it returns +inf so that no box is
+        pruned during the bootstrap phase.
+        """
+        if len(best) < k_available:
             return float("inf")
         de_sorted = sorted(c.nominal_euclidean_distance for c in best)
         return de_sorted[k - 1]
@@ -110,6 +133,7 @@ def probabilistic_knn(
         """Evaluate all RSOs in a leaf node (excluding the query itself)."""
         nonlocal distance_evals, leaves_visited
         leaves_visited += 1
+        visited.add(id(node))
         for rso in node.rsos:
             if rso.object_id == query_rso.object_id:
                 continue
@@ -125,31 +149,65 @@ def probabilistic_knn(
                     probabilistic_distance=dist,
                     nominal_euclidean_distance=euclidean_dist,
                 ),
-                k,
+                k_available,
             )
 
-    def _search_subtree(node: KDNode) -> None:
-        """Recursively search a subtree, pruning by D_box < DE_min.
+    def _open_subtree_bounded(node: KDNode) -> None:
+        """Open a subtree during the bootstrap phase.
 
-        Evaluates all leaves whose AABB is within the current DE_min
-        threshold, updating best-K and DE_min as candidates are found.
+        Evaluates leaves until len(best) >= k_available. No distance-based
+        pruning is applied because DE_min is undefined until k candidates
+        exist (Alg. 3 step 4).
         """
-        nonlocal nodes_visited, nodes_pruned
+        nonlocal nodes_visited, leaves_visited, distance_evals
+
+        if id(node) in visited:
+            return
 
         if node.is_leaf:
             _evaluate_leaf(node)
             return
 
         nodes_visited += 1
+        visited.add(id(node))
 
         for child in (node.left, node.right):
             if child is None:
+                continue
+            if len(best) >= k_available:
+                return
+            _open_subtree_bounded(child)
+
+    def _prune_remaining(node: KDNode) -> None:
+        """Pruning phase: traverse unvisited boxes (Alg. 3 steps 7–8).
+
+        For each unvisited internal node, compute D_box for each unvisited
+        child. If D_box < DE_min the child is opened recursively;
+        otherwise it is pruned. Leaves that have not yet been opened are
+        evaluated directly.
+        """
+        nonlocal nodes_visited, nodes_pruned
+
+        if node.is_leaf:
+            if id(node) not in visited:
+                _evaluate_leaf(node)
+            return
+
+        # Internal node: count it once if not already visited.
+        if id(node) not in visited:
+            nodes_visited += 1
+            visited.add(id(node))
+
+        for child in (node.left, node.right):
+            if child is None:
+                continue
+            if id(child) in visited:
                 continue
             d_box = point_to_aabb_distance(
                 query_position, child.aabb_lower, child.aabb_upper
             )
             if d_box < _de_min():
-                _search_subtree(child)
+                _prune_remaining(child)
             else:
                 nodes_pruned += 1
 
@@ -176,28 +234,40 @@ def probabilistic_knn(
     # Step 2: Evaluate the leaf
     _evaluate_leaf(leaf)
 
-    # Step 3: Backtrack up the tree, checking sibling subtrees
+    # ------------------------------------------------------------------
+    # Phase 1 - Bootstrap (Alg. 3 steps 3-6)
+    # ------------------------------------------------------------------
+    # Step 3 (continued): Traverse up the tree, opening sibling boxes
+    # until the required number of nearest neighbors is met.
     current = leaf
-    while current.parent is not None:
+    while current.parent is not None and len(best) < k_available:
         parent = current.parent
-        nodes_visited += 1  # internal node entered during backtracking
+        nodes_visited += 1
+        visited.add(id(parent))
 
-        # Identify the sibling subtree
+        # Identify the sibling subtree (the adjacent box at this level).
         if parent.left is current:
             sibling = parent.right
         else:
             sibling = parent.left
 
         if sibling is not None:
-            d_box = point_to_aabb_distance(
-                query_position, sibling.aabb_lower, sibling.aabb_upper
-            )
-            if d_box < _de_min():
-                _search_subtree(sibling)
-            else:
-                nodes_pruned += 1
+            _open_subtree_bounded(sibling)
 
         current = parent
+
+    # Step 6: DE_min is now defined (if k candidates were found).
+    # DH_min = best[0].probabilistic_distance (kept as a stored value per
+    # Alg. 3, though only DE_min drives the pruning test in step 8).
+
+    # ------------------------------------------------------------------
+    # Phase 2 - Pruning (Alg. 3 steps 7-8)
+    # ------------------------------------------------------------------
+    # Step 7-8: Compute D_box for all remaining boxes; open those with
+    # D_box < DE_min, prune the rest. Opening a box may lower DE_min,
+    # which is naturally honoured because the threshold is re-read at
+    # each comparison.
+    _prune_remaining(kd_tree)
 
     query_time = time.perf_counter() - start_time
 

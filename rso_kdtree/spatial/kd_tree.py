@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from .kd_node import KDNode
 from ..models.rso import RSO
+from .kd_node import KDNode
 
 
 def build_kdtree(
