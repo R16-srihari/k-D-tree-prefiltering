@@ -189,7 +189,7 @@ def run_single(config: argparse.Namespace) -> None:
     print(f"Total leaves visited: {total_leaves_visited}")
 
     if config.output:
-        output_path = Path(config.output)
+        output_path = Path("runs") / Path(config.output).name
         output_path.parent.mkdir(parents=True, exist_ok=True)
         fieldnames = [
             "query_id",
@@ -247,14 +247,15 @@ def run_benchmark(config: argparse.Namespace) -> None:
         leaf_size=config.leaf_size,
     )
 
-    # Set up tee output for logging
-    tee = TeeOutput(config.log_output)
+    # Set up tee output for logging (save to runs folder)
+    Path("runs").mkdir(parents=True, exist_ok=True)
+    tee = TeeOutput(str(Path("runs") / Path(config.log_output).name))
     
     try:
         # Write log header
         tee.write("=== RSO KNN Benchmark Log ===\n")
         tee.write(f"Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
-        tee.write(f"Save log to: {config.log_output}\n")
+        tee.write(f"Save log to: runs/{Path(config.log_output).name}\n")
         # Write initial settings (Mercurio spec)
         tee.write("=== Benchmark Configuration (Mercurio Specification) ===\n")
         tee.write(f"n_rso: {config.n_rso}\n")
@@ -278,7 +279,7 @@ def run_benchmark(config: argparse.Namespace) -> None:
         tee.write(f"K-D tree build time: {results.kdtree_build_time:.4f}s\n")
 
         if config.output:
-            output_path = Path(config.output)
+            output_path = Path("runs") / Path(config.output).name
             output_path.parent.mkdir(parents=True, exist_ok=True)
             df.to_csv(output_path, index=False)
             tee.write(f"Benchmark results written to {output_path}\n")
