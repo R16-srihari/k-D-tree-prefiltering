@@ -119,3 +119,4 @@ metrics, ensuring fair metric comparisons.
 
 ## References
 1. M. Mercurio and P. Singla, “A Tree-Based Approach for Efficient and Accurate Conjunction Analysis,” Comput. Model. Eng. Sci., vol. 111, no. 3, pp. 229–256, 2016. https://doi.org/10.3970/cmes.2016.111.229
+2. M. Mercurio, "A Noncombinatorial Approach for Efficient Conjunction Analysis." Order No. 1566932, State University of New York at Buffalo, United States -- New York, 2014.
