@@ -109,19 +109,15 @@ def gmm_distance(gmm_a, gmm_b, metric_name: str) -> float:
     (section 3.2: C_ij = W_2^2) and Mahalanobis (section 4.4:
     C_ik = D_M^2). Wasserstein additionally takes a square root of the
     optimal-transport objective; Mahalanobis does not.
+
+    Single-component GMMs are NOT special-cased: the 1x1 transport LP has
+    the trivial feasible plan W_00 = 1, so the unified path below reduces
+    exactly to the closed-form Gaussian distance with the same unit
+    conventions (unsquared W_2, squared D_M) as the multi-component case.
+    Keeping one code path removes any risk of the shortcut and the LP path
+    diverging in units.
     """
     distance_fn = get_gaussian_distance_fn(metric_name)
-
-    # Single-Gaussian shortcut: closed-form Gaussian distance.
-    if gmm_a.is_single_gaussian() and gmm_b.is_single_gaussian():
-        mu_a, cov_a = gmm_a.to_single_gaussian()
-        mu_b, cov_b = gmm_b.to_single_gaussian()
-        value = distance_fn(mu_a, cov_a, mu_b, cov_b)
-        if metric_name == "mahalanobis":
-            # OT-Mahalanobis uses squared component cost and no square root,
-            # so a single component yields D_M^2.
-            return value * value
-        return value
 
     cost = _build_cost_matrix(gmm_a, gmm_b, distance_fn)
 

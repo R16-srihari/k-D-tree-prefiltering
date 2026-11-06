@@ -118,6 +118,77 @@ def test_factory_supported_metrics():
     assert set(metrics) == {"hellinger", "mahalanobis", "wasserstein", "kl"}
 
 
+# ---------------------------------------------------------------------------
+# GMM-level distance: single-component path must share the LP path's units
+# ---------------------------------------------------------------------------
+
+
+def _single_gmm(mean, cov):
+    from rso_kdtree.models.gaussian_component import GaussianComponent
+    from rso_kdtree.models.gaussian_mixture import GaussianMixture
+
+    return GaussianMixture(
+        weights=np.array([1.0]),
+        components=[GaussianComponent(mean=mean, covariance=cov)],
+    )
+
+
+_GAUSSIAN_FNS = {
+    "hellinger": hellinger_gaussian,
+    "kl": symmetric_kl_gaussian,
+    "mahalanobis": mahalanobis_gaussian,
+    "wasserstein": wasserstein_gaussian,
+}
+
+
+def test_gmm_single_component_matches_lp_unit_convention():
+    """A 1-component GMM pair must return exactly what the unified OT-LP path
+    yields for a 1x1 cost matrix: the raw Gaussian distance for Hellinger/KL,
+    sqrt(C^2) = W_2 (unsquared) for Wasserstein, and C^2 = D_M^2 (squared, no
+    square root) for Mahalanobis."""
+    from rso_kdtree.distances.gmm_distances import gmm_distance
+
+    mean1 = np.zeros(3)
+    cov1 = np.eye(3)
+    mean2 = np.array([1.0, 0.5, -0.5])
+    cov2 = np.diag([1.5, 1.0, 0.8])
+    g1 = _single_gmm(mean1, cov1)
+    g2 = _single_gmm(mean2, cov2)
+
+    for name, fn in _GAUSSIAN_FNS.items():
+        raw = fn(mean1, cov1, mean2, cov2)
+        if name == "mahalanobis":
+            expected = raw * raw  # squared ground cost, no square root
+        elif name == "wasserstein":
+            expected = abs(raw)  # sqrt of squared ground cost
+        else:
+            expected = raw
+        assert gmm_distance(g1, g2, name) == pytest.approx(expected), name
+
+
+def test_gmm_distance_symmetric_multi_component():
+    from rso_kdtree.distances.gmm_distances import gmm_distance
+    from rso_kdtree.models.gaussian_component import GaussianComponent
+    from rso_kdtree.models.gaussian_mixture import GaussianMixture
+
+    rng = np.random.default_rng(0)
+    comps1 = [
+        GaussianComponent(mean=rng.normal(size=3), covariance=np.eye(3) * rng.uniform(0.5, 2.0))
+        for _ in range(3)
+    ]
+    comps2 = [
+        GaussianComponent(mean=rng.normal(size=3), covariance=np.eye(3) * rng.uniform(0.5, 2.0))
+        for _ in range(2)
+    ]
+    w1 = np.array([0.5, 0.3, 0.2])
+    w2 = np.array([0.6, 0.4])
+    g1 = GaussianMixture(weights=w1, components=comps1)
+    g2 = GaussianMixture(weights=w2, components=comps2)
+
+    for name in _GAUSSIAN_FNS:
+        assert gmm_distance(g1, g2, name) == pytest.approx(gmm_distance(g2, g1, name)), name
+
+
 def test_factory_create_each_metric():
     for name in ["hellinger", "mahalanobis", "wasserstein", "kl"]:
         metric = create_distance_metric(name)
