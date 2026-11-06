@@ -218,13 +218,16 @@ def probabilistic_knn(
     def _descend_to_leaf(node: KDNode) -> KDNode:
         """Descend from root to the leaf containing the query position."""
         current = node
-        while not current.is_leaf:
+        assert current is not None
+        while not current.is_leaf:  # type: ignore
+            assert current is not None
             axis = current.split_axis
             val = current.split_value
             if query_position[axis] <= val:
                 current = current.left
             else:
                 current = current.right
+        assert current is not None
         return current
 
     if kd_tree is None or n <= 1 or k_available == 0:
