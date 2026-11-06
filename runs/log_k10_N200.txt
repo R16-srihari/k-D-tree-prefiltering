@@ -1,5 +1,5 @@
 === RSO KNN Benchmark Log ===
-Timestamp: 2026-11-05 15:57:43
+Timestamp: 2026-11-06 10:58:35
 Save log to: runs/log_k10_N200.txt
 === Benchmark Configuration (Mercurio Specification) ===
 n_rso: 200
@@ -14,11 +14,11 @@ metrics: all (hellinger, wasserstein, mahalanobis, kl)
 
 === Benchmark Results ===
      Metric  GMM Components  K-D Tree Time (s)  Brute Force Time (s)  Recall@K  Distance Evaluations  Nodes Visited  Nodes Pruned  Leaves Visited  Mean Distance Difference
-  hellinger               6         130.680095            152.250569    0.7845                 32359          35423          3064           32559                       0.0
-         kl               6          29.777338            165.238995    0.9945                  7152          10040          2888            7352                       0.0
-mahalanobis               6          22.325239            178.463791    0.9990                  7014           9858          2844            7214                       0.0
-wasserstein               6          33.921471            175.720779    1.0000                  6481           9274          2793            6681                       0.0
+  hellinger               6         122.740172             78.770249    0.7250                 28960          31709          2749           29160              1.612513e-11
+         kl               6          25.539274             60.606564    0.9970                  8203          12020          3831            8403              1.305978e-14
+mahalanobis               6          47.571050             71.707345    0.9995                  8019          11810          3809            8219              2.472689e-14
+wasserstein               6          24.234718             80.116327    1.0000                  7378          11099          3740            7578              1.199396e-14
 
-Catalogue build time: 0.0422s
-K-D tree build time: 0.0063s
+Catalogue build time: 0.0390s
+K-D tree build time: 0.0044s
 Benchmark results written to runs\benchmark_k10_N200.csv

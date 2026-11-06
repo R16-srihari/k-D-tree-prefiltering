@@ -15,7 +15,7 @@ import pandas as pd
 
 from ..data.synthetic_catalogue import generate_synthetic_catalogue
 from ..distances.factory import create_distance_metric, list_supported_metrics
-from ..screening.brute_force import brute_force_knn
+from ..screening.brute_force import brute_force_knn_all
 from ..screening.knn import probabilistic_knn
 from ..spatial import build_kdtree
 from .metrics import mean_distance_difference, recall_at_k
@@ -124,17 +124,12 @@ def run_benchmark(config: BenchmarkConfig | None = None) -> BenchmarkResults:
     for metric_name in metrics:
         distance_metric = create_distance_metric(metric_name)
 
-        # Brute-force over all queries
+        # Brute-force over all queries in one sweep; symmetric metrics
+        # evaluate each unordered pair once (N(N-1)/2 evaluations).
         brute_start = time.perf_counter()
-        brute_results = []
-        for query_rso in catalogue:
-            result, _ = brute_force_knn(
-                query_rso=query_rso,
-                all_rsos=catalogue,
-                k=k,
-                distance_metric=distance_metric,
-            )
-            brute_results.append(result)
+        brute_results, _ = brute_force_knn_all(
+            catalogue, k=k, distance_metric=distance_metric
+        )
         brute_time = time.perf_counter() - brute_start
 
         # KD-tree over all queries

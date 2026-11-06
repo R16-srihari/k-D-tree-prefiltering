@@ -19,7 +19,7 @@ import numpy as np
 from .benchmark.metrics import recall_at_k
 from .data.synthetic_catalogue import generate_synthetic_catalogue
 from .distances.factory import create_distance_metric
-from .screening.brute_force import brute_force_knn
+from .screening.brute_force import brute_force_knn_all
 from .screening.knn import probabilistic_knn
 from .spatial import build_kdtree
 
@@ -123,14 +123,19 @@ def run_single(config: argparse.Namespace) -> None:
 
     all_results = []
     total_kdtree_time = 0.0
-    total_brute_time = 0.0
     total_distance_evals = 0
     total_nodes_visited = 0
     total_nodes_pruned = 0
     total_leaves_visited = 0
     recalls = []
 
-    for query_rso in catalogue:
+    # Brute-force reference for all queries in one sweep; symmetric metrics
+    # evaluate each unordered pair once (N(N-1)/2) per Mercurio & Singla.
+    t0 = time.perf_counter()
+    brute_results, _ = brute_force_knn_all(catalogue, k=k, distance_metric=distance_metric)
+    total_brute_time = time.perf_counter() - t0
+
+    for query_rso, bf_result in zip(catalogue, brute_results):
         # KD-tree search
         t0 = time.perf_counter()
         kd_result, kd_stats = probabilistic_knn(
@@ -146,17 +151,6 @@ def run_single(config: argparse.Namespace) -> None:
         total_nodes_visited += kd_stats.nodes_visited
         total_nodes_pruned += kd_stats.nodes_pruned
         total_leaves_visited += kd_stats.leaves_visited
-
-        # Brute-force reference
-        t0 = time.perf_counter()
-        bf_result, _ = brute_force_knn(
-            query_rso=query_rso,
-            all_rsos=catalogue,
-            k=k,
-            distance_metric=distance_metric,
-        )
-        t1 = time.perf_counter()
-        total_brute_time += t1 - t0
 
         recalls.append(recall_at_k(kd_result, bf_result))
 
