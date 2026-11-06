@@ -118,16 +118,18 @@ def probabilistic_knn(
         )
 
     def _de_min() -> float:
-        """K-th smallest Euclidean distance among evaluated candidates, or inf.
+        """k_available-th smallest Euclidean distance among evaluated candidates, or inf.
 
         This is the DE_min threshold of Alg. 3 step 6/8. While fewer than
-        k candidates have been found it returns +inf so that no box is
-        pruned during the bootstrap phase.
+        k_available candidates have been found it returns +inf so that no box
+        is pruned during the bootstrap phase. ``best`` is capped at
+        k_available entries, so the threshold must be indexed at
+        k_available - 1 (not k - 1, which overflows when k > n - 1).
         """
         if len(best) < k_available:
             return float("inf")
         de_sorted = sorted(c.nominal_euclidean_distance for c in best)
-        return de_sorted[k - 1]
+        return de_sorted[k_available - 1]
 
     def _evaluate_leaf(node: KDNode) -> None:
         """Evaluate all RSOs in a leaf node (excluding the query itself)."""
@@ -179,12 +181,14 @@ def probabilistic_knn(
             _open_subtree_bounded(child)
 
     def _prune_remaining(node: KDNode) -> None:
-        """Pruning phase: traverse unvisited boxes (Alg. 3 steps 7–8).
+        """Pruning phase: test all remaining boxes (Alg. 3 steps 7–8).
 
-        For each unvisited internal node, compute D_box for each unvisited
-        child. If D_box < DE_min the child is opened recursively;
-        otherwise it is pruned. Leaves that have not yet been opened are
-        evaluated directly.
+        For each child box, compute D_box = Euclidean distance from the query
+        to the box's AABB. If D_box < DE_min the box is opened recursively;
+        otherwise it is pruned. D_box is a lower bound on the distance to
+        *every* point in the box, so a subtree whose root was opened during
+        the bootstrap is NOT exempt: its unopened remainder must still be
+        tested. Only already-evaluated leaves are skipped.
         """
         nonlocal nodes_visited, nodes_pruned
 
@@ -201,8 +205,8 @@ def probabilistic_knn(
         for child in (node.left, node.right):
             if child is None:
                 continue
-            if id(child) in visited:
-                continue
+            if child.is_leaf and id(child) in visited:
+                continue  # already evaluated during the bootstrap phase
             d_box = point_to_aabb_distance(
                 query_position, child.aabb_lower, child.aabb_upper
             )

@@ -1,6 +1,7 @@
 """Tests for catalogue reproducibility and metric switching."""
 
 import numpy as np
+import pytest
 
 from rso_kdtree.data.synthetic_catalogue import generate_synthetic_catalogue
 from rso_kdtree.distances.factory import create_distance_metric
@@ -31,11 +32,16 @@ def test_different_seed_produces_different_catalogue():
     assert different
 
 
-def test_component_counts_supported():
+def test_component_count_is_six_per_mercurio():
+    cat = generate_synthetic_catalogue(n_rso=10, n_components=6, seed=42)
+    for rso in cat:
+        assert rso.uncertainty.n_components == 6
+
+
+def test_component_count_other_than_six_raises():
     for m in [1, 2, 3, 5]:
-        cat = generate_synthetic_catalogue(n_rso=10, n_components=m, seed=42)
-        for rso in cat:
-            assert rso.uncertainty.n_components == m
+        with pytest.raises(ValueError):
+            generate_synthetic_catalogue(n_rso=10, n_components=m, seed=42)
 
 
 def test_metric_switching_does_not_regenerate_catalogue():
@@ -46,4 +52,4 @@ def test_metric_switching_does_not_regenerate_catalogue():
         assert metric is not None
         # All metrics operate on the same catalogue objects
         rso = cat[0]
-        assert rso.uncertainty.n_components == 3
+        assert rso.uncertainty.n_components == 6

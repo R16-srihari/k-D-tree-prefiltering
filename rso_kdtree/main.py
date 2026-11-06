@@ -2,8 +2,8 @@
 
 Example:
 
-    python main.py --n-rso 2000 --k 10 --metric hellinger --components 3 \
-        --leaf-size 10 --seed 42 --cube-size 1000 --output results.csv
+    python main.py --n-rso 2000 --k 10 --metric hellinger --components 6 \
+        --leaf-size 1 --seed 42 --output results.csv
 """
 
 from __future__ import annotations
