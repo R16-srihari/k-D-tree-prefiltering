@@ -10,10 +10,13 @@ The current kd-tree implementation does not fully replicate Mercurio & Singla (2
 ## Identified Issues
 
 ### 1. Hellinger distance normalization mismatch (affects absolute values, not ranking)
-- **Paper Eq. 15**: DH = (1/√2) × √(1 - BC)
+- **Paper Eq. 15**: 
+  $$
+    \mathcal{D}_H(p,q) = \sqrt{1 - \frac{|\Sigma_p|^{1/4}|\Sigma_q|^{1/4}}{|\Sigma_{pq}|^{1/2}} e^{-\frac{1}{2}(\mu_p-\mu_q)^T\Sigma_{pq}^{-1}(\mu_p-\mu_q)}}
+  $$
 
-- **Implementation** (`gaussian_distances.py:hellinger_gaussian`): H = √(1 - BC), missing the 1/√2 factor
-- **Impact**: Constant √2 scaling on all Hellinger distances; ranking unchanged but absolute values don't match the paper
+- **Implementation** (`gaussian_distances.py`): Missing $1/\sqrt{2}$ factor in front of the square root
+- **Impact**: Absolute Hellinger values are off by a factor of $\sqrt{2}$, but ranking of distances (used for pruning) is unaffected. This is a cosmetic issue, not a functional one.
 
 ### 2. KD-tree median split creates unbalanced trees with duplicate values (affects performance)
 - **Implementation** (`kd_tree.py`): Left mask = `positions <= median`, right = `~left_mask`. All values equal to median go left, creating highly unbalanced trees when duplicates exist.
