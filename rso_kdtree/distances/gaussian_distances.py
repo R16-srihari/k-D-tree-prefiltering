@@ -169,11 +169,13 @@ def symmetric_kl_gaussian(mean_a, cov_a, mean_b, cov_b) -> float:
 class HellingerDistance(ProbabilisticDistance):
     """Hellinger distance between GMMs via component-coupling LP."""
 
-    name = "hellinger" 
+    @property
+    def name(self) -> str:
+        return "hellinger"
 
     def compute(self, gmm_a, gmm_b) -> float:
         from .gmm_distances import gmm_distance
-        return gmm_distance(gmm_a, gmm_b, "hellinger")
+        return gmm_distance(gmm_a, gmm_b, self.name)
 
     def compute_gaussian(self, mean_a, cov_a, mean_b, cov_b) -> float:
         return hellinger_gaussian(mean_a, cov_a, mean_b, cov_b)
@@ -182,11 +184,13 @@ class HellingerDistance(ProbabilisticDistance):
 class WassersteinDistance(ProbabilisticDistance):
     """Wasserstein-2 distance between GMMs via component-coupling LP."""
 
-    name = "wasserstein"
+    @property
+    def name(self) -> str:
+        return "wasserstein"
 
     def compute(self, gmm_a, gmm_b) -> float:
         from .gmm_distances import gmm_distance
-        return gmm_distance(gmm_a, gmm_b, "wasserstein")
+        return gmm_distance(gmm_a, gmm_b, self.name)
 
     def compute_gaussian(self, mean_a, cov_a, mean_b, cov_b) -> float:
         return wasserstein_gaussian(mean_a, cov_a, mean_b, cov_b)
@@ -195,11 +199,13 @@ class WassersteinDistance(ProbabilisticDistance):
 class MahalanobisDistance(ProbabilisticDistance):
     """Pooled-covariance Mahalanobis distance between GMMs via component-coupling LP."""
 
-    name = "mahalanobis"
-
+    @property
+    def name(self) -> str:
+        return "mahalanobis"
+    
     def compute(self, gmm_a, gmm_b) -> float:
         from .gmm_distances import gmm_distance
-        return gmm_distance(gmm_a, gmm_b, "mahalanobis")
+        return gmm_distance(gmm_a, gmm_b, self.name)
 
     def compute_gaussian(self, mean_a, cov_a, mean_b, cov_b) -> float:
         return mahalanobis_gaussian(mean_a, cov_a, mean_b, cov_b)
@@ -208,11 +214,13 @@ class MahalanobisDistance(ProbabilisticDistance):
 class SymmetricKLDistance(ProbabilisticDistance):
     """Symmetric KL divergence between GMMs via component-coupling LP."""
 
-    name = "kl"
+    @property
+    def name(self) -> str:
+        return "kl"
 
     def compute(self, gmm_a, gmm_b) -> float:
         from .gmm_distances import gmm_distance
-        return gmm_distance(gmm_a, gmm_b, "kl")
+        return gmm_distance(gmm_a, gmm_b, self.name)
 
     def compute_gaussian(self, mean_a, cov_a, mean_b, cov_b) -> float:
         return symmetric_kl_gaussian(mean_a, cov_a, mean_b, cov_b)
