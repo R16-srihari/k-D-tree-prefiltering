@@ -6,6 +6,9 @@ Mercurio thesis (§4) and Mercurio & Singla (2016) specifications:
 
 - RSO positions: spherical shell between 6,500 and 8,000 km from origin
 - Diagonal covariance matrix Σ with variances between var_min and var_max km^2
+  (default [100, 10000] per Mercurio & Singla 2016, Sec. 3: "variances between
+  100 and 10,000 km"; the 2014 thesis states 1,000-10,000, but the more recent
+  and specific CMES 2016 source takes precedence)
 - GMM with exactly 6 components (2·N for N=3 dimensions)
 - Component means: µ ± (√(3Σ))_i for i=1,2,3, where (√(3Σ))_i is the i-th
   column of the matrix square root of 3·Σ
@@ -67,7 +70,7 @@ def generate_synthetic_catalogue(
     r_min: float = 6500.0,
     r_max: float = 8000.0,
     seed: int = 42,
-    var_min: float = 1000.0,
+    var_min: float = 100.0,
     var_max: float = 10000.0,
 ) -> list[RSO]:
     """Generate a synthetic catalogue of RSOs with GMM uncertainty per Mercurio.
@@ -93,7 +96,7 @@ def generate_synthetic_catalogue(
     seed : int
         Random seed for reproducibility.
     var_min : float
-        Minimum variance for diagonal covariance (km^2). Default 1000.
+        Minimum variance for diagonal covariance (km^2). Default 100.
     var_max : float
         Maximum variance for diagonal covariance (km^2). Default 10000.
 

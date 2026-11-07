@@ -12,7 +12,8 @@ Phase 1 - Bootstrap (Alg. 3 steps 3-6):
      exhausted).  No distance pruning is applied in this phase because
      DE_min is undefined until k candidates exist.
   4. Store DH_min and DE_min (DE_min = K-th smallest Euclidean distance
-     among the current best-K).
+     among the current best-K, i.e. the largest Euclidean distance in the
+     best-K set, used as the pruning radius in step 8).
 
 Phase 2 - Pruning (Alg. 3 steps 7-8):
   5. Traverse the tree from the root. For every box not yet opened:
@@ -58,6 +59,7 @@ def probabilistic_knn(
     all_rsos: list[RSO],
     k: int,
     distance_metric: ProbabilisticDistance,
+    leaf_map: dict[str, KDNode] | None = None,
 ) -> tuple[KNNResult, KNNSearchStats]:
     """Probabilistic KNN search using exact Alg. 3 tree traversal.
 
@@ -80,6 +82,10 @@ def probabilistic_knn(
         Number of neighbors to return.
     distance_metric : ProbabilisticDistance
         The probabilistic distance measure.
+    leaf_map : dict[str, KDNode] | None
+        Optional object_id -> leaf map from ``build_leaf_map(kd_tree)``, used
+        to locate the query's leaf exactly (Alg. 3 step 2). If None, fall
+        back to value-based descent from the root.
 
     Returns
     -------
@@ -122,13 +128,14 @@ def probabilistic_knn(
         )
 
     def _de_min() -> float:
-        """k_available-th smallest Euclidean distance among evaluated candidates, or inf.
+        """K-th smallest (largest within best-K) Euclidean distance among evaluated candidates, or inf.
 
-        This is the DE_min threshold of Alg. 3 step 6/8. While fewer than
-        k_available candidates have been found it returns +inf so that no box
-        is pruned during the bootstrap phase. ``best`` is capped at
-        k_available entries, so the threshold must be indexed at
-        k_available - 1 (not k - 1, which overflows when k > n - 1).
+        This is the DE_min pruning threshold of Alg. 3 step 8: boxes with
+        D_box >= DE_min are pruned. ``best`` is capped at k_available entries
+        sorted by probabilistic distance, so the threshold is indexed at
+        k_available - 1 (not k - 1, which overflows when k > n - 1). While
+        fewer than k_available candidates have been found it returns +inf so
+        that no box is pruned during the bootstrap phase.
 
         The value is cached and only recomputed when ``best`` changes,
         avoiding an O(k log k) re-sort on every box test in the pruning loop.
@@ -266,8 +273,13 @@ def probabilistic_knn(
         stats = KNNSearchStats(0, 0, 0, 0, query_time)
         return make_result(), stats
 
-    # Step 1: Descend to the leaf containing the query position
-    leaf = _descend_to_leaf(kd_tree)
+    # Step 1: Locate the item of interest in the kd-tree (Alg. 3 step 2).
+    # A leaf map built once per tree gives the exact leaf even when several
+    # points share a split coordinate (value-based descent is ambiguous then).
+    if leaf_map is not None:
+        leaf = leaf_map[query_rso.object_id]
+    else:
+        leaf = _descend_to_leaf(kd_tree)
 
     # Step 2: Evaluate the leaf
     _evaluate_leaf(leaf)

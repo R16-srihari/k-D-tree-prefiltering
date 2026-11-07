@@ -21,7 +21,7 @@ from .data.synthetic_catalogue import generate_synthetic_catalogue
 from .distances.factory import create_distance_metric
 from .screening.brute_force import brute_force_knn_all
 from .screening.knn import probabilistic_knn
-from .spatial import build_kdtree
+from .spatial import build_kdtree, build_leaf_map
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -71,8 +71,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--var-min",
         type=float,
-        default=1000.0,
-        help="Minimum covariance variance in km^2 (default: 1000, per Mercurio)",
+        default=100.0,
+        help="Minimum covariance variance in km^2 (default: 100, per Mercurio & Singla 2016)",
     )
     parser.add_argument(
         "--var-max",
@@ -118,6 +118,7 @@ def run_single(config: argparse.Namespace) -> None:
     object_ids = [r.object_id for r in catalogue]
 
     kd_tree = build_kdtree(positions, catalogue, leaf_size=config.leaf_size)
+    leaf_map = build_leaf_map(kd_tree)
 
     k = min(config.k, config.n_rso - 1)
 
@@ -144,6 +145,7 @@ def run_single(config: argparse.Namespace) -> None:
             all_rsos=catalogue,
             k=k,
             distance_metric=distance_metric,
+            leaf_map=leaf_map,
         )
         t1 = time.perf_counter()
         total_kdtree_time += t1 - t0

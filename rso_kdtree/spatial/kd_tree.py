@@ -116,3 +116,38 @@ def build_kdtree(
         return node
 
     return _build(np.arange(n), aabb_lower, aabb_upper, parent=None)
+
+
+def build_leaf_map(root: KDNode) -> dict[str, KDNode]:
+    """Map each RSO ``object_id`` to the leaf node that stores it.
+
+    Per Mercurio & Singla (2016) Fig. 2 and Alg. 1 (Sources/Mercurio_Singla_
+    KD_Tree_based approach for efficient and accurate conjunction.md), leaf
+    nodes store the data points, so the item of interest is located exactly by
+    a single traversal (Alg. 3 step 2: "Locate the item of interest in the
+    kd-tree") instead of a value-based descent, which can land on the wrong
+    leaf when several points share a split coordinate.
+
+    Parameters
+    ----------
+    root : KDNode
+        Root of a tree built by :func:`build_kdtree`.
+
+    Returns
+    -------
+    dict[str, KDNode]
+        object_id -> leaf node containing that RSO.
+    """
+    leaf_map: dict[str, KDNode] = {}
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        if node.is_leaf:
+            for rso in node.rsos:
+                leaf_map[rso.object_id] = node
+        else:
+            if node.left is not None:
+                stack.append(node.left)
+            if node.right is not None:
+                stack.append(node.right)
+    return leaf_map

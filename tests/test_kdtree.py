@@ -13,7 +13,7 @@ import pytest
 from rso_kdtree.models.gaussian_component import GaussianComponent
 from rso_kdtree.models.gaussian_mixture import GaussianMixture
 from rso_kdtree.models.rso import RSO
-from rso_kdtree.spatial import KDNode, build_kdtree
+from rso_kdtree.spatial import KDNode, build_kdtree, build_leaf_map
 
 
 def _make_rsos(positions: np.ndarray) -> list[RSO]:
@@ -164,3 +164,19 @@ def test_single_point_root_is_leaf():
 def test_empty_positions_raises():
     with pytest.raises(ValueError):
         build_kdtree(np.empty((0, 3)), [], leaf_size=1)
+
+
+def test_build_leaf_map_maps_every_rso_to_its_leaf():
+    # Duplicate positions included: value-based descent would be ambiguous,
+    # but the leaf map must still point at a leaf containing each RSO.
+    positions = np.array(
+        [[5.0, 5.0, 5.0], [5.0, 5.0, 5.0], [1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
+    )
+    rsos = _make_rsos(positions)
+    root = build_kdtree(positions, rsos, leaf_size=1)
+    leaf_map = build_leaf_map(root)
+    assert set(leaf_map) == {r.object_id for r in rsos}
+    for rso in rsos:
+        leaf = leaf_map[rso.object_id]
+        assert leaf.is_leaf
+        assert rso in leaf.rsos

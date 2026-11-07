@@ -17,7 +17,7 @@ from ..data.synthetic_catalogue import generate_synthetic_catalogue
 from ..distances.factory import create_distance_metric, list_supported_metrics
 from ..screening.brute_force import brute_force_knn_all
 from ..screening.knn import probabilistic_knn
-from ..spatial import build_kdtree
+from ..spatial import build_kdtree, build_leaf_map
 from .metrics import mean_distance_difference, recall_at_k
 
 
@@ -28,7 +28,7 @@ class BenchmarkConfig:
     n_components: int = 6
     r_min: float = 6500.0
     r_max: float = 8000.0
-    var_min: float = 1000.0
+    var_min: float = 100.0
     var_max: float = 10000.0
     seed: int = 42
     leaf_size: int = 1
@@ -112,6 +112,7 @@ def run_benchmark(config: BenchmarkConfig | None = None) -> BenchmarkResults:
 
     tree_start = time.perf_counter()
     kd_tree = build_kdtree(positions, catalogue, leaf_size=config.leaf_size)
+    leaf_map = build_leaf_map(kd_tree)
     kdtree_build_time = time.perf_counter() - tree_start
 
     k = min(config.k, config.n_rso - 1)
@@ -147,6 +148,7 @@ def run_benchmark(config: BenchmarkConfig | None = None) -> BenchmarkResults:
                 all_rsos=catalogue,
                 k=k,
                 distance_metric=distance_metric,
+                leaf_map=leaf_map,
             )
             kdtree_results.append(result)
             total_distance_evals += stats.distance_evaluations
