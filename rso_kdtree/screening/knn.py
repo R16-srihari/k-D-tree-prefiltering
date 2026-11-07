@@ -105,6 +105,10 @@ def probabilistic_knn(
     # Track opened boxes so they are not re-evaluated in the pruning phase.
     visited: set[int] = set()
 
+    # DE_min cache: recomputed only when ``best`` changes, not on every box test.
+    de_min_cached = float("inf")
+    de_min_valid = False
+
     # Build object_id -> index map (avoids fragile string parsing of object_id)
     object_id_to_index = {r.object_id: i for i, r in enumerate(all_rsos)}
     _ = object_id_to_index[query_rso.object_id]  # validate query is in catalogue
@@ -125,15 +129,23 @@ def probabilistic_knn(
         is pruned during the bootstrap phase. ``best`` is capped at
         k_available entries, so the threshold must be indexed at
         k_available - 1 (not k - 1, which overflows when k > n - 1).
+
+        The value is cached and only recomputed when ``best`` changes,
+        avoiding an O(k log k) re-sort on every box test in the pruning loop.
         """
+        nonlocal de_min_cached, de_min_valid
         if len(best) < k_available:
+            de_min_valid = False
             return float("inf")
-        de_sorted = sorted(c.nominal_euclidean_distance for c in best)
-        return de_sorted[k_available - 1]
+        if not de_min_valid:
+            de_sorted = sorted(c.nominal_euclidean_distance for c in best)
+            de_min_cached = de_sorted[k_available - 1]
+            de_min_valid = True
+        return de_min_cached
 
     def _evaluate_leaf(node: KDNode) -> None:
         """Evaluate all RSOs in a leaf node (excluding the query itself)."""
-        nonlocal distance_evals, leaves_visited
+        nonlocal distance_evals, leaves_visited, de_min_valid
         leaves_visited += 1
         visited.add(id(node))
         for rso in node.rsos:
@@ -153,6 +165,7 @@ def probabilistic_knn(
                 ),
                 k_available,
             )
+        de_min_valid = False  # best changed; DE_min cache is stale
 
     def _open_subtree_bounded(node: KDNode) -> None:
         """Open a subtree during the bootstrap phase.
@@ -180,21 +193,39 @@ def probabilistic_knn(
                 return
             _open_subtree_bounded(child)
 
+    def _subtree_fully_evaluated(node: KDNode) -> bool:
+        """Return True if every leaf under ``node`` is in the ``visited`` set.
+
+        Used in Phase 2 to skip entire subtrees that were fully opened
+        (all leaves evaluated) during the bootstrap phase, avoiding
+        redundant D_box computations.
+        """
+        if node.is_leaf:
+            return id(node) in visited
+        left_ok = node.left is None or _subtree_fully_evaluated(node.left)
+        if not left_ok:
+            return False
+        right_ok = node.right is None or _subtree_fully_evaluated(node.right)
+        return right_ok
+
     def _prune_remaining(node: KDNode) -> None:
         """Pruning phase: test all remaining boxes (Alg. 3 steps 7–8).
 
         For each child box, compute D_box = Euclidean distance from the query
         to the box's AABB. If D_box < DE_min the box is opened recursively;
-        otherwise it is pruned. D_box is a lower bound on the distance to
-        *every* point in the box, so a subtree whose root was opened during
-        the bootstrap is NOT exempt: its unopened remainder must still be
-        tested. Only already-evaluated leaves are skipped.
+        otherwise it is pruned. Subtrees that were fully evaluated during
+        the bootstrap phase (all leaves already visited) are skipped
+        entirely to avoid redundant distance-to-box computations.
         """
         nonlocal nodes_visited, nodes_pruned
 
         if node.is_leaf:
             if id(node) not in visited:
                 _evaluate_leaf(node)
+            return
+
+        # Skip internal nodes fully evaluated during the bootstrap phase.
+        if id(node) in visited and _subtree_fully_evaluated(node):
             return
 
         # Internal node: count it once if not already visited.

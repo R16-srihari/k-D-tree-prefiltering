@@ -48,11 +48,13 @@ def _psd_sqrtm(cov: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 def hellinger_gaussian(mean_a, cov_a, mean_b, cov_b) -> float:
-    """Hellinger distance between two 3D Gaussians.
+    r"""Hellinger distance between two 3D Gaussians.
 
-    BC = |S1|^{1/4} |S2|^{1/4} / |Sbar|^{1/2} * exp(-1/8 * d^T Sbar^{-1} d)
-    H = sqrt(1 - BC)
-
+    H = \sqrt{1 - \frac{|\Sigma_p|^{1/4}|\Sigma_q|^{1/4}}
+                     {|\Sigma_{pq}|^{1/2}}
+                 \exp\!\Big[-\tfrac12(\mu_p-\mu_q)^T\Sigma_{pq}^{-1}
+                              (\mu_p-\mu_q)\Big]}
+    
     Returns values in [0, 1]. Identical distributions give 0.
     """
     mean_a, cov_a = _validate_gaussian(mean_a, cov_a)
@@ -68,16 +70,17 @@ def hellinger_gaussian(mean_a, cov_a, mean_b, cov_b) -> float:
     if sign_a <= 0 or sign_b <= 0 or sign_bar <= 0:
         return 1.0
 
-    log_bc = 0.25 * (logdet_a + logdet_b) - 0.5 * logdet_bar
+    log_bc_coeff = 0.25 * (logdet_a + logdet_b) - 0.5 * logdet_bar
+    log_bc = 0
 
     try:
         mahal = d @ solve(sbar, d)
-        log_bc -= 0.125 * mahal
+        log_bc -= 0.5 * mahal
     except np.linalg.LinAlgError:
         return 1.0
 
     log_bc = float(np.clip(log_bc, -700.0, 0.0))
-    bc = float(np.clip(np.exp(log_bc), 0.0, 1.0))
+    bc = float(np.clip(np.exp(log_bc_coeff+log_bc), 0.0, 1.0))
     h2 = float(np.clip(1.0 - bc, 0.0, 1.0))
     return float(np.sqrt(h2))
 
@@ -166,7 +169,7 @@ def symmetric_kl_gaussian(mean_a, cov_a, mean_b, cov_b) -> float:
 class HellingerDistance(ProbabilisticDistance):
     """Hellinger distance between GMMs via component-coupling LP."""
 
-    name = "hellinger"
+    name = "hellinger" 
 
     def compute(self, gmm_a, gmm_b) -> float:
         from .gmm_distances import gmm_distance

@@ -29,14 +29,14 @@ def _build_tree(catalogue, leaf_size=1):
     return build_kdtree(positions, catalogue, leaf_size=leaf_size)
 
 
-def _build_single_gaussian_catalogue(n=30, seed=7, var=1_000_000.0):
+def _build_single_gaussian_catalogue(n=30, seed=7, var=10_000_000.0):
     """RSOs with identical single-Gaussian uncertainty (covariance ``var * I``).
 
     With identical covariances, every supported metric is a strictly monotone
     function of the Euclidean mean separation, so Alg. 3's deterministic
     distance-to-box pruning is exact. ``var`` must be large enough that
     Hellinger does not saturate at exactly 1.0 for shell-scale separations
-    (~2000-10000 km): BC = exp(-d^2 / (8*var)), so var = 1e6 km^2 keeps the
+    (~2000-10000 km): BC = exp(-d^2 / (2*var)), so var = 1e7 km^2 keeps the
     top-k Hellinger values distinct in double precision.
     """
     rng = np.random.default_rng(seed)
