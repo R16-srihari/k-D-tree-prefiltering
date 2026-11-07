@@ -57,7 +57,7 @@ def _solve_ot_lp(cost_matrix: np.ndarray, weights_a: np.ndarray, weights_b: np.n
 
     # Equality constraints: row sums = weights_a (n_a constraints)
     #                       col sums = weights_b (n_b constraints, drop last)
-    n_constraints = n_a + n_b - 1
+    n_constraints = n_a + n_b
     a_eq = np.zeros((n_constraints, n_vars))
 
     # Row constraints: sum_j W_ij = a_i
@@ -67,13 +67,13 @@ def _solve_ot_lp(cost_matrix: np.ndarray, weights_a: np.ndarray, weights_b: np.n
             a_eq[i, idx] = 1.0
 
     # Column constraints: sum_i W_ij = b_j (drop last column constraint)
-    for j in range(n_b - 1):
+    for j in range(n_b):
         row = n_a + j
         for i in range(n_a):
             idx = i * n_b + j
             a_eq[row, idx] = 1.0
 
-    b_eq = np.concatenate([weights_a, weights_b[:-1]])
+    b_eq = np.concatenate([weights_a, weights_b])
 
     bounds = [(0, None)] * n_vars
 
@@ -117,6 +117,7 @@ def gmm_distance(gmm_a, gmm_b, metric_name: str) -> float:
     Keeping one code path removes any risk of the shortcut and the LP path
     diverging in units.
     """
+    
     distance_fn = get_gaussian_distance_fn(metric_name)
 
     cost = _build_cost_matrix(gmm_a, gmm_b, distance_fn)
