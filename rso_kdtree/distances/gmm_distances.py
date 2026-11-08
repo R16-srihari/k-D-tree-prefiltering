@@ -66,7 +66,7 @@ def _solve_ot_lp(cost_matrix: np.ndarray, weights_a: np.ndarray, weights_b: np.n
             idx = i * n_b + j
             a_eq[i, idx] = 1.0
 
-    # Column constraints: sum_i W_ij = b_j (drop last column constraint)
+    # Column constraints: sum_i W_ij = b_j 
     for j in range(n_b):
         row = n_a + j
         for i in range(n_a):
@@ -77,7 +77,7 @@ def _solve_ot_lp(cost_matrix: np.ndarray, weights_a: np.ndarray, weights_b: np.n
 
     bounds = [(0, None)] * n_vars
 
-    result = linprog(c, A_eq=a_eq, b_eq=b_eq, bounds=bounds, method="highs")
+    result = linprog(c, A_eq=a_eq, b_eq=b_eq, bounds=bounds, method="highs-ds")
 
     if not result.success:
         # Fallback: product-weights approximation (upper bound for OT)

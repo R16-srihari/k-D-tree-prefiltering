@@ -70,9 +70,8 @@ def hellinger_gaussian(mean_a, cov_a, mean_b, cov_b) -> float:
     if sign_a <= 0 or sign_b <= 0 or sign_bar <= 0:
         return 1.0
 
-    log_bc_coeff = 0.25 * (logdet_a + logdet_b) - 0.5 * logdet_bar
-    log_bc = 0
-
+    log_bc = 0.25 * (logdet_a + logdet_b) - 0.5 * logdet_bar
+    
     try:
         mahal = d @ solve(sbar, d)
         log_bc -= 0.5 * mahal
@@ -80,7 +79,7 @@ def hellinger_gaussian(mean_a, cov_a, mean_b, cov_b) -> float:
         return 1.0
 
     log_bc = float(np.clip(log_bc, -700.0, 0.0))
-    bc = float(np.clip(np.exp(log_bc_coeff+log_bc), 0.0, 1.0))
+    bc = float(np.clip(np.exp(log_bc), 0.0, 1.0))
     h2 = float(np.clip(1.0 - bc, 0.0, 1.0))
     return float(np.sqrt(h2))
 
@@ -154,7 +153,7 @@ def symmetric_kl_gaussian(mean_a, cov_a, mean_b, cov_b) -> float:
     except np.linalg.LinAlgError:
         return float("inf")
 
-    trace_term = float(np.trace(inv_b @ cov_a + inv_a @ cov_b))
+    trace_term = float(np.trace(inv_b @ cov_a) + np.trace(inv_a @ cov_b))
     mean_term = float(d @ (inv_a + inv_b) @ d)
 
     skl = 0.25 * (trace_term - 2.0 * dim + mean_term)
