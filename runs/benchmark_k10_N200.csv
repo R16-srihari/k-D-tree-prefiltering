@@ -1,5 +1,5 @@
-Metric,GMM Components,K-D Tree Time (s),Brute Force Time (s),Recall@K,Distance Evaluations,Nodes Visited,Nodes Pruned,Leaves Visited,Mean Distance Difference
-hellinger,6,122.74017209999965,78.7702491,0.725,28960,31709,2749,29160,1.6125129237167693e-11
-kl,6,25.539274200000364,60.60656370000015,0.9969999999999999,8203,12020,3831,8403,1.3059775483270642e-14
-mahalanobis,6,47.57104999999956,71.70734519999951,0.9995,8019,11810,3809,8219,2.4726887204451486e-14
-wasserstein,6,24.234718200000316,80.11632700000064,1.0,7378,11099,3740,7578,1.1993961379630492e-14
+Metric     , GMM Components, K-D Tree Time (s)  , Brute Force Time (s), Recall@K          , Distance Evaluations, Nodes Visited, Nodes Pruned, Leaves Visited, Mean Distance Difference
+hellinger  ,              6, 166.2108109999972  ,   122.03344989998732, 0.7530000000000001,                30482,         33054,         2572,          30682, 6.587964301069908e-15
+kl         ,              6,  27.635853599989787,    60.44370259999414, 0.998             ,                 9206,         13479,         4286,           9406, 0.0
+mahalanobis,              6,  31.42344949999824 ,    65.2759817999904 , 0.9990000000000001,                 8470,         12752,         4296,           8670, 0.0
+wasserstein,              6,  72.6867471000005  ,   136.7089404000144 , 1.0               ,                 7414,         11564,         4172,           7614, 1.1368683772161603e-16
