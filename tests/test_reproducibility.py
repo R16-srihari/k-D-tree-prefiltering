@@ -21,15 +21,23 @@ def test_same_seed_produces_same_catalogue():
             assert np.allclose(c1.covariance, c2.covariance)
 
 
-def test_different_seed_produces_different_catalogue():
+def test_different_seed_produces_same_positions_different_covariances():
+    # Nominal positions are deterministic from satellite_propagated.csv, so different
+    # seeds yield identical positions; seed only controls the random covariances.
     cat1 = generate_synthetic_catalogue(n_rso=50, seed=42)
     cat2 = generate_synthetic_catalogue(n_rso=50, seed=99)
 
-    different = any(
-        not np.allclose(r1.nominal_position, r2.nominal_position)
+    assert len(cat1) == len(cat2)
+    for r1, r2 in zip(cat1, cat2):
+        assert r1.object_id == r2.object_id
+        assert np.allclose(r1.nominal_position, r2.nominal_position)
+
+    different_cov = any(
+        not np.allclose(c1.covariance, c2.covariance)
         for r1, r2 in zip(cat1, cat2)
+        for c1, c2 in zip(r1.uncertainty.components, r2.uncertainty.components)
     )
-    assert different
+    assert different_cov
 
 
 def test_component_count_is_six_per_mercurio():

@@ -149,9 +149,12 @@ pytest tests/
 
 ## Reproducibility
 
-The synthetic catalogue uses `np.random.default_rng(seed)` with a fixed
-seed (default 42). The same catalogue is reused across all distance
-metrics, ensuring fair metric comparisons.
+Nominal positions come from the first `n_rso` usable rows of
+`rso_kdtree/data/satellite_propagated.csv` (SGP4-propagated Space-Track GP
+data), taken in file order — they are deterministic given the CSV file. The
+`seed` parameter (default 42) controls only the random diagonal covariances.
+The same catalogue is reused across all distance metrics, ensuring fair
+metric comparisons.
 
 ## References
 1. M. Mercurio and P. Singla, “A Tree-Based Approach for Efficient and Accurate Conjunction Analysis,” Comput. Model. Eng. Sci., vol. 111, no. 3, pp. 229–256, 2016. https://doi.org/10.3970/cmes.2016.111.229

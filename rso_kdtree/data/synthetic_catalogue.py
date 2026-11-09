@@ -1,10 +1,13 @@
 """Synthetic catalogue generation for RSO KNN screening.
 
-Generates a reproducible catalogue of RSOs with nominal 3D positions and
-3D Gaussian Mixture Model (GMM) positional uncertainty, following the
-Mercurio thesis (§4) and Mercurio & Singla (2016) specifications:
+Generates a reproducible catalogue of RSOs with nominal 3D positions taken from
+``data/satellite_propagated.csv`` (SGP4-propagated Space-Track GP data produced by
+``data/space-track_catalogue/space-track_data-gen.py``) and 3D Gaussian Mixture Model
+(GMM) positional uncertainty, following the Mercurio thesis (§4) and Mercurio & Singla
+(2016) specifications:
 
-- RSO positions: spherical shell between 6,500 and 8,000 km from origin
+- RSO positions: the first ``n_rso`` usable rows of ``satellite_propagated.csv`` whose
+  X/Y/Z fields are finite (km). Rows are taken in file order.
 - Diagonal covariance matrix Σ with variances between var_min and var_max km^2
   (default [100, 10000] per Mercurio & Singla 2016, Sec. 3: "variances between
   100 and 10,000 km"; the 2014 thesis states 1,000-10,000, but the more recent
@@ -16,16 +19,22 @@ Mercurio thesis (§4) and Mercurio & Singla (2016) specifications:
 - Equal weights 1/6 each
 
 The same catalogue is reused across all distance metrics to ensure fair
-metric comparisons.
+metric comparisons. Nominal positions are deterministic given the CSV file; the
+``seed`` parameter controls only the random diagonal covariances.
 """
 
 from __future__ import annotations
+
+import csv
+from pathlib import Path
 
 import numpy as np
 
 from ..models.gaussian_component import GaussianComponent
 from ..models.gaussian_mixture import GaussianMixture
 from ..models.rso import RSO
+
+_DEFAULT_CSV_PATH = Path(__file__).parent / "satellite_propagated.csv"
 
 
 def _generate_diagonal_covariance(rng: np.random.Generator, var_min: float, var_max: float) -> np.ndarray:
@@ -48,35 +57,79 @@ def _matrix_sqrtm(matrix: np.ndarray) -> np.ndarray:
     return (eigenvectors * sqrt_eigenvalues) @ eigenvectors.T
 
 
-def _sample_spherical_shell(rng: np.random.Generator, r_min: float, r_max: float, n: int) -> np.ndarray:
-    """Sample n points uniformly from a spherical shell [r_min, r_max].
+def _load_csv_positions(csv_path: Path, n_rso: int) -> list[tuple[str, np.ndarray]]:
+    """Load the first ``n_rso`` usable nominal positions from a satellite CSV.
 
-    Uses uniform sampling in radius^3 and uniform direction on sphere.
+    The CSV (produced by ``space-track_data-gen.py``) has columns
+    ``NORAD_CAT_ID, OBJECT_NAME, EPOCH, X, Y, Z, VX, VY, VZ`` (km / km/s). Rows whose
+    X/Y/Z are not finite are skipped (defensive: a regenerated file may contain
+    ``nan`` entries from failed SGP4 propagations). Returns ``(object_id, position)``
+    pairs in file order, where ``object_id`` is the sequential index within the
+    returned list (``RSO_{i:04d}`` is assigned by the caller).
+
+    Parameters
+    ----------
+    csv_path : Path
+        Path to ``satellite_propagated.csv``.
+    n_rso : int
+        Number of positions to return.
+
+    Returns
+    -------
+    list[tuple[str, np.ndarray]]
+        ``(object_id, position_km)`` pairs, length ``n_rso``.
+
+    Raises
+    ------
+    FileNotFoundError
+        If ``csv_path`` does not exist.
+    ValueError
+        If fewer than ``n_rso`` rows have finite X/Y/Z.
     """
-    # Uniform in volume: r^3 uniform in [r_min^3, r_max^3]
-    r3 = rng.uniform(r_min**3, r_max**3, size=n)
-    radii = r3 ** (1.0 / 3.0)
+    if not csv_path.exists():
+        raise FileNotFoundError(f"satellite catalogue CSV not found: {csv_path}")
 
-    # Uniform direction on sphere (normal distribution + normalize)
-    directions = rng.normal(0.0, 1.0, size=(n, 3))
-    directions = directions / np.linalg.norm(directions, axis=1, keepdims=True)
+    positions: list[tuple[str, np.ndarray]] = []
+    with open(csv_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            try:
+                x = float(row["X"])
+                y = float(row["Y"])
+                z = float(row["Z"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if not (np.isfinite(x) and np.isfinite(y) and np.isfinite(z)):
+                continue
+            object_id = str(row.get("NORAD_CAT_ID", "")).strip() or f"RSO_{len(positions):04d}"
+            positions.append((object_id, np.array([x, y, z], dtype=float)))
+            if len(positions) >= n_rso:
+                break
 
-    return directions * radii[:, np.newaxis]
+    if len(positions) < n_rso:
+        raise ValueError(
+            f"satellite catalogue CSV {csv_path} has only {len(positions)} usable rows "
+            f"(finite X/Y/Z), but n_rso={n_rso} requested"
+        )
+    return positions
 
 
 def generate_synthetic_catalogue(
-    n_rso: int = 2000,
+    n_rso: int = 200,
     n_components: int = 6,
     r_min: float = 6500.0,
     r_max: float = 8000.0,
     seed: int = 42,
     var_min: float = 100.0,
     var_max: float = 10000.0,
+    csv_path: Path | str | None = None,
 ) -> list[RSO]:
     """Generate a synthetic catalogue of RSOs with GMM uncertainty per Mercurio.
 
     Follows Mercurio thesis §4 / 2016 paper §3:
 
+    - Nominal positions: first ``n_rso`` usable rows of ``satellite_propagated.csv``
+      (finite X/Y/Z), taken in file order. Positions are deterministic given the CSV.
     - Component means: χ_i = µ + (√(3Σ))_i and χ_{i+3} = µ − (√(3Σ))_i
       for i = 1, 2, 3, yielding 6 components in 3D.
     - Component covariance: Σ/3 (per thesis §4).
@@ -85,20 +138,25 @@ def generate_synthetic_catalogue(
     Parameters
     ----------
     n_rso : int
-        Number of RSOs to generate.
+        Number of RSOs to generate (default 200). Must not exceed the number of usable
+        rows in the CSV.
     n_components : int
         Number of Gaussian components per RSO. Must equal 6 per Mercurio;
         any other value raises ValueError.
     r_min : float
-        Minimum distance from origin (km). Default 6500 km.
+        Deprecated; retained for backward compatibility. Nominal positions now come from
+        ``satellite_propagated.csv`` rather than a spherical shell.
     r_max : float
-        Maximum distance from origin (km). Default 8000 km.
+        Deprecated; retained for backward compatibility. See ``r_min``.
     seed : int
-        Random seed for reproducibility.
+        Random seed controlling only the random diagonal covariances (positions are
+        deterministic from the CSV). Default 42.
     var_min : float
         Minimum variance for diagonal covariance (km^2). Default 100.
     var_max : float
         Maximum variance for diagonal covariance (km^2). Default 10000.
+    csv_path : Path | str | None
+        Path to ``satellite_propagated.csv``. Defaults to the file next to this module.
 
     Returns
     -------
@@ -108,17 +166,25 @@ def generate_synthetic_catalogue(
     Raises
     ------
     ValueError
-        If n_components != 6 (Mercurio requires exactly 6 components).
+        If ``n_components != 6`` (Mercurio requires exactly 6 components), or if the CSV
+        has fewer than ``n_rso`` usable rows.
+    FileNotFoundError
+        If ``csv_path`` does not exist.
     """
     if n_components != 6:
         raise ValueError(
             f"n_components must be 6 per Mercurio specification, got {n_components}"
         )
 
-    rng = np.random.default_rng(seed)
+    if csv_path is None:
+        csv_path = _DEFAULT_CSV_PATH
+    else:
+        csv_path = Path(csv_path)
 
-    # Nominal positions uniformly in spherical shell [r_min, r_max]
-    positions = _sample_spherical_shell(rng, r_min, r_max, n_rso)
+    # Nominal positions: first n_rso usable rows of satellite_propagated.csv
+    csv_positions = _load_csv_positions(csv_path, n_rso)
+
+    rng = np.random.default_rng(seed)
 
     rsos: list[RSO] = []
 
@@ -126,8 +192,7 @@ def generate_synthetic_catalogue(
     weights = np.ones(6) / 6.0
 
     for i in range(n_rso):
-        object_id = f"RSO_{i:04d}"
-        nominal_position = positions[i]
+        object_id, nominal_position = csv_positions[i]
 
         # Generate diagonal covariance Σ with variances in [var_min, var_max]
         Sigma = _generate_diagonal_covariance(rng, var_min, var_max)
