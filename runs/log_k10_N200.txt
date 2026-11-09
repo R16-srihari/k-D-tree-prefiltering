@@ -1,12 +1,12 @@
 === RSO KNN Benchmark Log ===
-Timestamp: 2026-11-06 10:58:35
+Timestamp: 2026-11-08 11:37:52
 Save log to: runs/log_k10_N200.txt
 === Benchmark Configuration (Mercurio Specification) ===
 n_rso: 200
 k: 10
 components: 6 (equal weights)
 Orbital radius range: [6500.0, 8000.0] km
-Covariance variance range: [1000.0, 10000.0] km^2 (diagonal)
+Covariance variance range: [100.0, 10000.0] km^2 (diagonal)
 seed: 42
 leaf_size: 1
 metrics: all (hellinger, wasserstein, mahalanobis, kl)
@@ -14,11 +14,11 @@ metrics: all (hellinger, wasserstein, mahalanobis, kl)
 
 === Benchmark Results ===
      Metric  GMM Components  K-D Tree Time (s)  Brute Force Time (s)  Recall@K  Distance Evaluations  Nodes Visited  Nodes Pruned  Leaves Visited  Mean Distance Difference
-  hellinger               6         122.740172             78.770249    0.7250                 28960          31709          2749           29160              1.612513e-11
-         kl               6          25.539274             60.606564    0.9970                  8203          12020          3831            8403              1.305978e-14
-mahalanobis               6          47.571050             71.707345    0.9995                  8019          11810          3809            8219              2.472689e-14
-wasserstein               6          24.234718             80.116327    1.0000                  7378          11099          3740            7578              1.199396e-14
+  hellinger               6         127.012329             88.127066     0.753                 30482          33054          2572           30682              6.587964e-15
+         kl               6          37.262702             58.985388     0.998                  9206          13479          4286            9406              0.000000e+00
+mahalanobis               6          26.537495             99.468944     0.999                  8470          12752          4296            8670              0.000000e+00
+wasserstein               6          50.348049            119.252432     1.000                  7414          11564          4172            7614              1.136868e-16
 
-Catalogue build time: 0.0390s
-K-D tree build time: 0.0044s
+Catalogue build time: 0.0833s
+K-D tree build time: 0.0105s
 Benchmark results written to runs\benchmark_k10_N200.csv

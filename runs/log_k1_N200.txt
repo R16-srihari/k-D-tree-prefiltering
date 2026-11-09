@@ -1,0 +1,24 @@
+=== RSO KNN Benchmark Log ===
+Timestamp: 2026-11-08 11:05:47
+Save log to: runs/log_k1_N200.txt
+=== Benchmark Configuration (Mercurio Specification) ===
+n_rso: 200
+k: 1
+components: 6 (equal weights)
+Orbital radius range: [6500.0, 8000.0] km
+Covariance variance range: [100.0, 10000.0] km^2 (diagonal)
+seed: 42
+leaf_size: 1
+metrics: all (hellinger, wasserstein, mahalanobis, kl)
+
+
+=== Benchmark Results ===
+     Metric  GMM Components  K-D Tree Time (s)  Brute Force Time (s)  Recall@K  Distance Evaluations  Nodes Visited  Nodes Pruned  Leaves Visited  Mean Distance Difference
+  hellinger               6          39.632913            169.477693     0.190                  4637           7397          2760            4837              5.263401e-14
+         kl               6          12.248454            133.081918     0.980                  1854           4257          2403            2054              0.000000e+00
+mahalanobis               6          11.514557            149.220562     0.995                  1816           4227          2411            2016              0.000000e+00
+wasserstein               6          12.009438            134.643946     1.000                  1746           4143          2397            1946              0.000000e+00
+
+Catalogue build time: 0.0526s
+K-D tree build time: 0.0068s
+Benchmark results written to runs\benchmark_k1_N200.csv
