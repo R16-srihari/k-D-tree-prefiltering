@@ -84,13 +84,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--output",
         type=str,
         default="benchmark.csv",
-        help="Output CSV path for KNN results",
+        help="Output CSV path for KNN results. Default: benchmark.csv since this is the default output for the benchmark suite.",
     )
     parser.add_argument(
         "--log-output",
         type=str,
         default="log.txt",
-        help="Output text file path for benchmark log (includes settings and results)",
+        help="Output text file path for benchmark terminal log (includes settings and results)",
     )
     parser.add_argument(
         "--benchmark",
