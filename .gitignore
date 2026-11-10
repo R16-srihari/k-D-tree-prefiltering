@@ -9,3 +9,6 @@
 
 # Ignore all files in the Sources directory
 Sources/
+
+# Ignore Space-Track account credentials
+rso_kdtree/data/space-track_catalogue/space-track_account.json
