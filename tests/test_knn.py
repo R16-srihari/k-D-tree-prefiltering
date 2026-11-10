@@ -12,12 +12,12 @@ from rso_kdtree.models.gaussian_mixture import GaussianMixture
 from rso_kdtree.models.rso import RSO
 from rso_kdtree.screening.brute_force import brute_force_knn
 from rso_kdtree.screening.knn import probabilistic_knn
-from rso_kdtree.spatial import build_kdtree
+from rso_kdtree.spatial import build_kdtree, build_leaf_map
 
 ALL_METRICS = ["hellinger", "wasserstein", "mahalanobis", "kl"]
 
 
-def _build_catalogue(n=30, seed=7, var_min=1000.0, var_max=10000.0):
+def _build_catalogue(n=30, seed=7, var_min=100.0, var_max=10000.0):
     """6-component GMM catalogue per the Mercurio & Singla (2016) spec."""
     return generate_synthetic_catalogue(
         n_rso=n, n_components=6, seed=seed, var_min=var_min, var_max=var_max
@@ -29,14 +29,14 @@ def _build_tree(catalogue, leaf_size=1):
     return build_kdtree(positions, catalogue, leaf_size=leaf_size)
 
 
-def _build_single_gaussian_catalogue(n=30, seed=7, var=1_000_000.0):
+def _build_single_gaussian_catalogue(n=30, seed=7, var=10_000_000.0):
     """RSOs with identical single-Gaussian uncertainty (covariance ``var * I``).
 
     With identical covariances, every supported metric is a strictly monotone
     function of the Euclidean mean separation, so Alg. 3's deterministic
     distance-to-box pruning is exact. ``var`` must be large enough that
     Hellinger does not saturate at exactly 1.0 for shell-scale separations
-    (~2000-10000 km): BC = exp(-d^2 / (8*var)), so var = 1e6 km^2 keeps the
+    (~2000-10000 km): BC = exp(-d^2 / (2*var)), so var = 1e7 km^2 keeps the
     top-k Hellinger values distinct in double precision.
     """
     rng = np.random.default_rng(seed)
@@ -128,6 +128,21 @@ def test_kdtree_k_handles_larger_than_available():
     # k=10 but only 4 other RSOs available
     result, _ = probabilistic_knn(query, tree, catalogue, k=10, distance_metric=metric)
     assert len(result.neighbors) == 4
+
+
+def test_kdtree_knn_with_leaf_map_matches_descent():
+    catalogue = _build_catalogue()
+    tree = _build_tree(catalogue)
+    leaf_map = build_leaf_map(tree)
+    metric = create_distance_metric("hellinger")
+    query = catalogue[0]
+    r_map, _ = probabilistic_knn(
+        query, tree, catalogue, k=5, distance_metric=metric, leaf_map=leaf_map
+    )
+    r_desc, _ = probabilistic_knn(query, tree, catalogue, k=5, distance_metric=metric)
+    assert [n.object_id for n in r_map.neighbors] == [
+        n.object_id for n in r_desc.neighbors
+    ]
 
 
 def test_kdtree_knn_deterministic():
@@ -226,7 +241,8 @@ def test_kdtree_knn_never_beats_exhaustive_topk():
 
 
 def test_kdtree_knn_recall_default_gmm_catalogue():
-    """Recall@K on the 6-component GMM catalogue with default variances.
+    """Recall@K on the 6-component GMM catalogue with default variances
+    (var in [100, 10000] km^2 per Mercurio & Singla 2016, Sec. 3).
     Mercurio & Singla report 98.6%+ nearest-neighbour capture; with large
     variances Hellinger saturates near 1, so its floor is lower (the paper's
     own acknowledged deterministic distance-to-box limitation)."""

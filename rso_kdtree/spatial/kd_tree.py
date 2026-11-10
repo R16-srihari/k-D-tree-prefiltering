@@ -69,22 +69,22 @@ def build_kdtree(
         spread = upper - lower
         split_axis = int(np.argmax(spread))
 
-        # Split at median along split axis
+        # Split at median along split axis. Sort by split-axis value and
+        # split at the middle index to guarantee left/right balance even when
+        # many positions share the same coordinate (duplicate median values).
         split_values = positions[idxs, split_axis]
         median_val = float(np.median(split_values))
 
-        # Partition indices by median
-        left_mask = positions[idxs, split_axis] <= median_val
-        right_mask = ~left_mask
+        sorted_order = np.argsort(split_values, kind="stable")
+        sorted_idxs = idxs[sorted_order]
+        mid = len(sorted_idxs) // 2
+        left_idxs = sorted_idxs[:mid]
+        right_idxs = sorted_idxs[mid:]
 
-        # Handle degenerate case: all values equal on split axis
-        if not np.any(left_mask) or not np.any(right_mask):
-            mid = len(idxs) // 2
-            left_idxs = idxs[:mid]
-            right_idxs = idxs[mid:]
-        else:
-            left_idxs = idxs[left_mask]
-            right_idxs = idxs[right_mask]
+        # Split value is the largest value in the left partition; the right
+        # partition's lower bound on this axis starts at the same value so
+        # points equal to the split can fall on either side.
+        median_val = float(positions[left_idxs[-1], split_axis])
 
         # Compute child AABBs
         left_lower = lower.copy()
@@ -116,3 +116,38 @@ def build_kdtree(
         return node
 
     return _build(np.arange(n), aabb_lower, aabb_upper, parent=None)
+
+
+def build_leaf_map(root: KDNode) -> dict[str, KDNode]:
+    """Map each RSO ``object_id`` to the leaf node that stores it.
+
+    Per Mercurio & Singla (2016) Fig. 2 and Alg. 1 (Sources/Mercurio_Singla_
+    KD_Tree_based approach for efficient and accurate conjunction.md), leaf
+    nodes store the data points, so the item of interest is located exactly by
+    a single traversal (Alg. 3 step 2: "Locate the item of interest in the
+    kd-tree") instead of a value-based descent, which can land on the wrong
+    leaf when several points share a split coordinate.
+
+    Parameters
+    ----------
+    root : KDNode
+        Root of a tree built by :func:`build_kdtree`.
+
+    Returns
+    -------
+    dict[str, KDNode]
+        object_id -> leaf node containing that RSO.
+    """
+    leaf_map: dict[str, KDNode] = {}
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        if node.is_leaf:
+            for rso in node.rsos:
+                leaf_map[rso.object_id] = node
+        else:
+            if node.left is not None:
+                stack.append(node.left)
+            if node.right is not None:
+                stack.append(node.right)
+    return leaf_map

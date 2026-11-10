@@ -74,6 +74,42 @@ distributions, particularly when uncertainties are large or anisotropic.
 Consequently, KD-tree results are approximate; brute-force results are
 the reference.
 
+This limitation is fundamental to using Euclidean space partitioning for
+probabilistic nearest-neighbor search. Mercurio & Singla (2016) report
+~98.6% nearest-neighbor capture rather than 100% for this reason. Recall
+depends on the catalogue's uncertainty characteristics:
+
+- **Small, isotropic uncertainties**: Euclidean distance is a good proxy
+  for probabilistic distance; Recall@K approaches 100%.
+- **Large or highly anisotropic uncertainties**: Euclidean distance can
+  be a poor proxy; boxes far in Euclidean space may contain RSOs with
+  small probabilistic distance. Recall@K drops accordingly.
+
+#### Tuning guidance
+
+To match the paper's reported Recall@K (~98.6%+):
+
+1. **Increase `k` slightly** above the target neighbor count to give the
+   pruning threshold more headroom (e.g., use k=8 when you need k=5).
+2. **Use smaller `leaf_size`** (default 1) for finer-grained pruning,
+   at the cost of a deeper tree.
+3. **Validate against brute force** on a representative subset of your
+   catalogue to measure actual Recall@K before deploying at scale.
+4. **Prefer Hellinger or Wasserstein** over Mahalanobis or KL when
+   uncertainty anisotropy is significant; these metrics better capture
+   distributional overlap.
+
+#### Hellinger distance normalization
+
+Per Eq. 15 of Mercurio & Singla (2016), the Gaussian-level Hellinger
+distance is:
+
+$$
+\mathcal{D}_H(p,q) = \sqrt{1 - \frac{|\Sigma_p|^{1/4}|\Sigma_q|^{1/4}}{|\Sigma_{pq}|^{1/2}} e^{-\frac{1}{2}(\mu_p-\mu_q)^T\Sigma_{pq}^{-1}(\mu_p-\mu_q)}}
+$$
+
+where $\Sigma_p$, $\Sigma_q$, and $\Sigma_{pq}$ are the covariances of the two Gaussians and their average, respectively.
+
 ### GMM distance approximations
 
 GMM distances use a component-coupling formulation solved via linear

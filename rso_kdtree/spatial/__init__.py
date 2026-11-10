@@ -8,6 +8,6 @@ node-level AABB bounds for pruning decisions and instrumentation
 from __future__ import annotations
 
 from .kd_node import KDNode
-from .kd_tree import build_kdtree
+from .kd_tree import build_kdtree, build_leaf_map
 
-__all__ = ["KDNode", "build_kdtree"]
+__all__ = ["KDNode", "build_kdtree", "build_leaf_map"]
