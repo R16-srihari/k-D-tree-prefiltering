@@ -264,7 +264,7 @@ def run_benchmark(config: argparse.Namespace) -> None:
         tee.write(f"metrics: all (hellinger, wasserstein, mahalanobis, kl)\n")
         tee.write("\n")
 
-        results = bench_run(bench_config)
+        results = bench_run(bench_config, log_write=tee.write)
         df = results.to_dataframe()
 
         tee.write("\n=== Benchmark Results ===\n")

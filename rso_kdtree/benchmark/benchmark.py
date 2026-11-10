@@ -8,15 +8,17 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Callable, Optional
 
 import numpy as np
 import pandas as pd
 
 from ..data.synthetic_catalogue import generate_synthetic_catalogue
 from ..distances.factory import create_distance_metric, list_supported_metrics
+from ..models.rso import RSO
 from ..screening.brute_force import brute_force_knn_all
 from ..screening.knn import probabilistic_knn
+from ..screening.results import KNNResult
 from ..spatial import build_kdtree, build_leaf_map
 from .metrics import mean_distance_difference, recall_at_k
 
@@ -75,13 +77,63 @@ class BenchmarkResults:
         )
 
 
-def run_benchmark(config: BenchmarkConfig | None = None) -> BenchmarkResults:
+def _log_first_n_neighbors(
+    metric_name: str,
+    catalogue: list[RSO],
+    kdtree_results: list[KNNResult],
+    brute_results: list[KNNResult],
+    n: int = 5,
+    write: Callable[[str], None] = print,
+) -> None:
+    """Write neighbor IDs of the first ``n`` RSOs for KD-tree vs BruteForce.
+
+    Intended for the terminal/log so a user can inspect, per chosen measure,
+    which RSOs each method returned as nearest neighbors for the first few
+    queries.
+
+    Parameters
+    ----------
+    metric_name : str
+        Name of the distance measure being benchmarked.
+    catalogue : list[RSO]
+        Full catalogue (query RSOs are taken from the front of this list).
+    kdtree_results : list[KNNResult]
+        Per-query KD-tree results, aligned with ``catalogue`` order.
+    brute_results : list[KNNResult]
+        Per-query BruteForce results, aligned with ``catalogue`` order.
+    n : int
+        Number of leading RSOs to log (default: 5).
+    write : Callable[[str], None]
+        Sink for the log text (``print`` by default; pass ``tee.write`` to
+        mirror to both terminal and the benchmark log file).
+    """
+    limit = min(n, len(catalogue))
+    write(f"\n--- Neighbor IDs of first {limit} RSOs (metric: {metric_name}) ---\n")
+    for idx in range(limit):
+        query = catalogue[idx]
+        kd_res = kdtree_results[idx]
+        bf_res = brute_results[idx]
+        kd_ids = [neighbor.object_id for neighbor in kd_res.neighbors]
+        bf_ids = [neighbor.object_id for neighbor in bf_res.neighbors]
+        write(f"Query RSO: {query.object_id}\n")
+        write(f"  KD-tree neighbors:   {kd_ids}\n")
+        write(f"  BruteForce neighbors: {bf_ids}\n")
+    write("\n")
+
+
+def run_benchmark(
+    config: BenchmarkConfig | None = None,
+    log_write: Callable[[str], None] = print,
+) -> BenchmarkResults:
     """Run the full benchmark suite.
 
     Parameters
     ----------
     config : BenchmarkConfig | None
         Benchmark configuration. Uses defaults if None.
+    log_write : Callable[[str], None]
+        Sink for informational log text (``print`` by default; pass
+        ``tee.write`` to mirror to both terminal and the benchmark log file).
 
     Returns
     -------
@@ -157,6 +209,16 @@ def run_benchmark(config: BenchmarkConfig | None = None) -> BenchmarkResults:
             total_leaves_visited += stats.leaves_visited
 
         kdtree_time = time.perf_counter() - kdtree_start
+
+        # Log neighbor IDs of the first 5 RSOs for this measure
+        _log_first_n_neighbors(
+            metric_name=metric_name,
+            catalogue=catalogue,
+            kdtree_results=kdtree_results,
+            brute_results=brute_results,
+            n=5,
+            write=log_write,
+        )
 
         # Aggregate metrics across all queries
         recalls = []
