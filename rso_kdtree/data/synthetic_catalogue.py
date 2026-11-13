@@ -144,14 +144,14 @@ def generate_synthetic_catalogue(
             components.append(
                 GaussianComponent(
                     mean=nominal_position + delta,
-                    covariance=Sigma / 3.0,
+                    covariance=Sigma ,
                 )
             )
             # Minus direction: χ_{j+3} = µ − (√(3Σ))_j
             components.append(
                 GaussianComponent(
                     mean=nominal_position - delta,
-                    covariance=Sigma / 3.0,
+                    covariance=Sigma ,
                 )
             )
 
