@@ -71,14 +71,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--var-min",
         type=float,
-        default=100.0,
-        help="Minimum covariance variance in km^2 (default: 100, per Mercurio & Singla 2016)",
+        default=10000.0,
+        help="Minimum covariance variance in km^2 (default: 10000)",
     )
     parser.add_argument(
         "--var-max",
         type=float,
-        default=10000.0,
-        help="Maximum covariance variance in km^2 (default: 10000, per Mercurio)",
+        default=1000000000.0,
+        help="Maximum covariance variance in km^2 (default: 1000000000)",
     )
     parser.add_argument(
         "--output",

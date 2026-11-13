@@ -30,8 +30,8 @@ class BenchmarkConfig:
     n_components: int = 6
     r_min: float = 6500.0
     r_max: float = 8000.0
-    var_min: float = 100.0
-    var_max: float = 10000.0
+    var_min: float = 10000.0
+    var_max: float = 1000000000.0
     seed: int = 42
     leaf_size: int = 1
     metrics: list[str] | None = None
