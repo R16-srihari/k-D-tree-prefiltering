@@ -1,24 +1,96 @@
 === RSO KNN Benchmark Log ===
-Timestamp: 2026-11-08 11:05:47
+Timestamp: 2026-11-13 19:42:22
 Save log to: runs/log_k1_N200.txt
 === Benchmark Configuration (Mercurio Specification) ===
 n_rso: 200
 k: 1
 components: 6 (equal weights)
 Orbital radius range: [6500.0, 8000.0] km
-Covariance variance range: [100.0, 10000.0] km^2 (diagonal)
+Covariance variance range: [10000.0, 1000000000.0] km^2 (diagonal)
 seed: 42
 leaf_size: 1
 metrics: all (hellinger, wasserstein, mahalanobis, kl)
 
 
+--- Neighbor IDs of first 5 RSOs (metric: hellinger) ---
+Query RSO: RSO_0000
+  KD-tree neighbors:   ['RSO_0097']
+  BruteForce neighbors: ['RSO_0097']
+Query RSO: RSO_0001
+  KD-tree neighbors:   ['RSO_0061']
+  BruteForce neighbors: ['RSO_0061']
+Query RSO: RSO_0002
+  KD-tree neighbors:   ['RSO_0125']
+  BruteForce neighbors: ['RSO_0125']
+Query RSO: RSO_0003
+  KD-tree neighbors:   ['RSO_0011']
+  BruteForce neighbors: ['RSO_0197']
+Query RSO: RSO_0004
+  KD-tree neighbors:   ['RSO_0108']
+  BruteForce neighbors: ['RSO_0163']
+
+
+--- Neighbor IDs of first 5 RSOs (metric: kl) ---
+Query RSO: RSO_0000
+  KD-tree neighbors:   ['RSO_0097']
+  BruteForce neighbors: ['RSO_0097']
+Query RSO: RSO_0001
+  KD-tree neighbors:   ['RSO_0061']
+  BruteForce neighbors: ['RSO_0130']
+Query RSO: RSO_0002
+  KD-tree neighbors:   ['RSO_0125']
+  BruteForce neighbors: ['RSO_0125']
+Query RSO: RSO_0003
+  KD-tree neighbors:   ['RSO_0011']
+  BruteForce neighbors: ['RSO_0197']
+Query RSO: RSO_0004
+  KD-tree neighbors:   ['RSO_0108']
+  BruteForce neighbors: ['RSO_0163']
+
+
+--- Neighbor IDs of first 5 RSOs (metric: mahalanobis) ---
+Query RSO: RSO_0000
+  KD-tree neighbors:   ['RSO_0097']
+  BruteForce neighbors: ['RSO_0097']
+Query RSO: RSO_0001
+  KD-tree neighbors:   ['RSO_0061']
+  BruteForce neighbors: ['RSO_0061']
+Query RSO: RSO_0002
+  KD-tree neighbors:   ['RSO_0125']
+  BruteForce neighbors: ['RSO_0125']
+Query RSO: RSO_0003
+  KD-tree neighbors:   ['RSO_0011']
+  BruteForce neighbors: ['RSO_0011']
+Query RSO: RSO_0004
+  KD-tree neighbors:   ['RSO_0108']
+  BruteForce neighbors: ['RSO_0163']
+
+
+--- Neighbor IDs of first 5 RSOs (metric: wasserstein) ---
+Query RSO: RSO_0000
+  KD-tree neighbors:   ['RSO_0007']
+  BruteForce neighbors: ['RSO_0007']
+Query RSO: RSO_0001
+  KD-tree neighbors:   ['RSO_0059']
+  BruteForce neighbors: ['RSO_0059']
+Query RSO: RSO_0002
+  KD-tree neighbors:   ['RSO_0125']
+  BruteForce neighbors: ['RSO_0125']
+Query RSO: RSO_0003
+  KD-tree neighbors:   ['RSO_0011']
+  BruteForce neighbors: ['RSO_0197']
+Query RSO: RSO_0004
+  KD-tree neighbors:   ['RSO_0108']
+  BruteForce neighbors: ['RSO_0163']
+
+
 === Benchmark Results ===
      Metric  GMM Components  K-D Tree Time (s)  Brute Force Time (s)  Recall@K  Distance Evaluations  Nodes Visited  Nodes Pruned  Leaves Visited  Mean Distance Difference
-  hellinger               6          39.632913            169.477693     0.190                  4637           7397          2760            4837              5.263401e-14
-         kl               6          12.248454            133.081918     0.980                  1854           4257          2403            2054              0.000000e+00
-mahalanobis               6          11.514557            149.220562     0.995                  1816           4227          2411            2016              0.000000e+00
-wasserstein               6          12.009438            134.643946     1.000                  1746           4143          2397            1946              0.000000e+00
+  hellinger               6          23.692825            169.497634     0.490                  3666           6388          2722            3866              0.000000e+00
+         kl               6          24.448123            124.893400     0.330                  3925           6687          2762            4125              0.000000e+00
+mahalanobis               6          24.938132             78.181220     0.545                  3477           6172          2695            3677              0.000000e+00
+wasserstein               6          15.097369            131.469050     0.430                  3810           6550          2740            4010              1.589342e-12
 
-Catalogue build time: 0.0526s
-K-D tree build time: 0.0068s
+Catalogue build time: 0.1029s
+K-D tree build time: 0.0119s
 Benchmark results written to runs\benchmark_k1_N200.csv
