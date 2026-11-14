@@ -171,8 +171,8 @@ Defaults already match Mercurio prescription — no changes needed:
 | `--seed` | 42 | 42 (keep) |
 | `--r-min` | 6500.0 | 6500.0 (keep) |
 | `--r-max` | 8000.0 | 8000.0 (keep) |
-| `--var-min` | 1000.0 | 1000.0 (keep) |
-| `--var-max` | 10000.0 | 10000.0 (keep) |
+| `--var-min` | 1e-4 | 1e-4 (sigma = 0.01 km) |
+| `--var-max` | 100.0 | 100.0 (sigma = 10 km) |
 
 Update `benchmark/BenchmarkConfig` defaults to match (currently `leaf_size=10`, `n_components=6`).
 

@@ -119,3 +119,72 @@ def test_default_csv_path_works():
     assert len(cat) == 10
     # First usable CSV row is a real propagated position.
     assert np.all(np.isfinite(cat[0].nominal_position))
+
+
+# ---------------------------------------------------------------------------
+# RTN frame covariance tests
+# ---------------------------------------------------------------------------
+
+
+def test_rtn_frame_stores_velocity_and_rtn_covariance():
+    """With cov_frame='RTN', each RSO should store nominal_velocity and rtn_covariance."""
+    cat = generate_synthetic_catalogue(
+        n_rso=10, seed=42, cov_frame="RTN", csv_path=CSV_PATH
+    )
+    for rso in cat:
+        assert rso.nominal_velocity is not None
+        assert np.all(np.isfinite(rso.nominal_velocity))
+        assert rso.rtn_covariance is not None
+        assert rso.rtn_covariance.shape == (3, 3)
+        assert np.all(np.linalg.eigvalsh(rso.rtn_covariance) > 0)
+
+
+def test_rtn_frame_covariance_is_rotated_to_eci():
+    """With cov_frame='RTN', the GMM component covariances should be in ECI
+    (rotated from RTN), not equal to the original RTN diagonal covariance."""
+    cat = generate_synthetic_catalogue(
+        n_rso=10, seed=42, cov_frame="RTN", csv_path=CSV_PATH
+    )
+    for rso in cat:
+        # Component covariance = Sigma_ECI / 3 (thesis §4)
+        comp_cov = rso.uncertainty.components[0].covariance
+        # Sigma_ECI = 3 * comp_cov
+        Sigma_eci = 3.0 * comp_cov
+        # Should be symmetric positive definite
+        assert np.allclose(Sigma_eci, Sigma_eci.T, atol=1e-10)
+        assert np.all(np.linalg.eigvalsh(Sigma_eci) > 0)
+        # Should differ from the stored RTN covariance (rotation mixes axes)
+        assert not np.allclose(Sigma_eci, 3.0 * rso.rtn_covariance, atol=1e-8)
+
+
+def test_invalid_cov_frame_raises():
+    """An invalid cov_frame should raise ValueError."""
+    with pytest.raises(ValueError, match="cov_frame"):
+        generate_synthetic_catalogue(
+            n_rso=5, seed=42, cov_frame="INVALID", csv_path=CSV_PATH
+        )
+
+
+def test_rtn_frame_uses_velocity_from_csv():
+    """With cov_frame='RTN', nominal_velocity should match the CSV VX/VY/VZ values."""
+    import csv
+
+    # Read the first usable row's velocity from the CSV
+    with open(CSV_PATH, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            try:
+                x, y, z = float(row["X"]), float(row["Y"]), float(row["Z"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if not (np.isfinite(x) and np.isfinite(y) and np.isfinite(z)):
+                continue
+            expected_velocity = np.array(
+                [float(row["VX"]), float(row["VY"]), float(row["VZ"])]
+            )
+            break
+
+    cat = generate_synthetic_catalogue(
+        n_rso=1, seed=42, cov_frame="RTN", csv_path=CSV_PATH
+    )
+    assert np.allclose(cat[0].nominal_velocity, expected_velocity)

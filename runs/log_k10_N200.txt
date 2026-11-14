@@ -1,96 +1,96 @@
 === RSO KNN Benchmark Log ===
-Timestamp: 2026-11-13 15:57:25
+Timestamp: 2026-11-14 17:35:11
 Save log to: runs/log_k10_N200.txt
 === Benchmark Configuration (Mercurio Specification) ===
 n_rso: 200
 k: 10
 components: 6 (equal weights)
 Orbital radius range: [6500.0, 8000.0] km
-Covariance variance range: [10000.0, 100000000.0] km^2 (diagonal)
+Covariance variance range: [0.0001, 100.0] km^2 (diagonal)
 seed: 42
 leaf_size: 1
 metrics: all (hellinger, wasserstein, mahalanobis, kl)
 
 
 --- Neighbor IDs of first 5 RSOs (metric: hellinger) ---
-Query RSO: RSO_0000
-  KD-tree neighbors:   ['RSO_0152', 'RSO_0097', 'RSO_0127', 'RSO_0145', 'RSO_0077', 'RSO_0007', 'RSO_0095', 'RSO_0175', 'RSO_0168', 'RSO_0043']
-  BruteForce neighbors: ['RSO_0152', 'RSO_0097', 'RSO_0127', 'RSO_0145', 'RSO_0077', 'RSO_0007', 'RSO_0095', 'RSO_0175', 'RSO_0168', 'RSO_0043']
-Query RSO: RSO_0001
-  KD-tree neighbors:   ['RSO_0018', 'RSO_0061', 'RSO_0068', 'RSO_0129', 'RSO_0090', 'RSO_0059', 'RSO_0086', 'RSO_0107', 'RSO_0073', 'RSO_0143']
-  BruteForce neighbors: ['RSO_0018', 'RSO_0061', 'RSO_0068', 'RSO_0129', 'RSO_0090', 'RSO_0059', 'RSO_0086', 'RSO_0107', 'RSO_0073', 'RSO_0143']
-Query RSO: RSO_0002
-  KD-tree neighbors:   ['RSO_0125', 'RSO_0070', 'RSO_0124', 'RSO_0067', 'RSO_0050', 'RSO_0024', 'RSO_0190', 'RSO_0169', 'RSO_0049', 'RSO_0157']
-  BruteForce neighbors: ['RSO_0125', 'RSO_0070', 'RSO_0124', 'RSO_0067', 'RSO_0050', 'RSO_0024', 'RSO_0190', 'RSO_0169', 'RSO_0049', 'RSO_0157']
-Query RSO: RSO_0003
-  KD-tree neighbors:   ['RSO_0190', 'RSO_0011', 'RSO_0046', 'RSO_0029', 'RSO_0197', 'RSO_0166', 'RSO_0194', 'RSO_0125', 'RSO_0013', 'RSO_0155']
-  BruteForce neighbors: ['RSO_0190', 'RSO_0011', 'RSO_0046', 'RSO_0029', 'RSO_0197', 'RSO_0166', 'RSO_0194', 'RSO_0125', 'RSO_0013', 'RSO_0155']
-Query RSO: RSO_0004
-  KD-tree neighbors:   ['RSO_0144', 'RSO_0163', 'RSO_0108', 'RSO_0034', 'RSO_0092', 'RSO_0044', 'RSO_0116', 'RSO_0121', 'RSO_0019', 'RSO_0133']
-  BruteForce neighbors: ['RSO_0144', 'RSO_0163', 'RSO_0108', 'RSO_0034', 'RSO_0092', 'RSO_0044', 'RSO_0116', 'RSO_0117', 'RSO_0121', 'RSO_0019']
+Query RSO: 48442
+  KD-tree neighbors:   ['100243', '100793', '101277', '101278', '101293', '10617', '10745', '10768', '11084', '11378']
+  BruteForce neighbors: ['100243', '100793', '101277', '101278', '101293', '10617', '10745', '10768', '11084', '11378']
+Query RSO: 61614
+  KD-tree neighbors:   ['100243', '100793', '101277', '101278', '101293', '10617', '10745', '10768', '11378', '11539']
+  BruteForce neighbors: ['100243', '100793', '101277', '101278', '101293', '10617', '10745', '10768', '11084', '11378']
+Query RSO: 61615
+  KD-tree neighbors:   ['100243', '100793', '101277', '101278', '101293', '10617', '11084', '11378', '11539', '11693']
+  BruteForce neighbors: ['100243', '100793', '101277', '101278', '101293', '10617', '10745', '10768', '11084', '11378']
+Query RSO: 48621
+  KD-tree neighbors:   ['100243', '100793', '101277', '101278', '101293', '10617', '10745', '10768', '11084', '11378']
+  BruteForce neighbors: ['100243', '100793', '101277', '101278', '101293', '10617', '10745', '10768', '11084', '11378']
+Query RSO: 43080
+  KD-tree neighbors:   ['100243', '100793', '101277', '101278', '101293', '10617', '10745', '10768', '11084', '11378']
+  BruteForce neighbors: ['100243', '100793', '101277', '101278', '101293', '10617', '10745', '10768', '11084', '11378']
 
 
 --- Neighbor IDs of first 5 RSOs (metric: kl) ---
-Query RSO: RSO_0000
-  KD-tree neighbors:   ['RSO_0097', 'RSO_0145', 'RSO_0127', 'RSO_0007', 'RSO_0152', 'RSO_0036', 'RSO_0168', 'RSO_0060', 'RSO_0066', 'RSO_0046']
-  BruteForce neighbors: ['RSO_0097', 'RSO_0145', 'RSO_0127', 'RSO_0007', 'RSO_0152', 'RSO_0036', 'RSO_0168', 'RSO_0060', 'RSO_0066', 'RSO_0046']
-Query RSO: RSO_0001
-  KD-tree neighbors:   ['RSO_0061', 'RSO_0018', 'RSO_0068', 'RSO_0090', 'RSO_0059', 'RSO_0129', 'RSO_0044', 'RSO_0076', 'RSO_0099', 'RSO_0107']
-  BruteForce neighbors: ['RSO_0061', 'RSO_0018', 'RSO_0068', 'RSO_0090', 'RSO_0059', 'RSO_0129', 'RSO_0044', 'RSO_0076', 'RSO_0099', 'RSO_0107']
-Query RSO: RSO_0002
-  KD-tree neighbors:   ['RSO_0125', 'RSO_0124', 'RSO_0070', 'RSO_0067', 'RSO_0050', 'RSO_0190', 'RSO_0154', 'RSO_0024', 'RSO_0082', 'RSO_0017']
-  BruteForce neighbors: ['RSO_0125', 'RSO_0124', 'RSO_0070', 'RSO_0067', 'RSO_0050', 'RSO_0190', 'RSO_0154', 'RSO_0024', 'RSO_0003', 'RSO_0082']
-Query RSO: RSO_0003
-  KD-tree neighbors:   ['RSO_0190', 'RSO_0011', 'RSO_0197', 'RSO_0046', 'RSO_0029', 'RSO_0125', 'RSO_0194', 'RSO_0013', 'RSO_0100', 'RSO_0182']
-  BruteForce neighbors: ['RSO_0190', 'RSO_0011', 'RSO_0197', 'RSO_0046', 'RSO_0029', 'RSO_0125', 'RSO_0194', 'RSO_0013', 'RSO_0100', 'RSO_0182']
-Query RSO: RSO_0004
-  KD-tree neighbors:   ['RSO_0163', 'RSO_0144', 'RSO_0053', 'RSO_0191', 'RSO_0108', 'RSO_0187', 'RSO_0193', 'RSO_0092', 'RSO_0188', 'RSO_0052']
-  BruteForce neighbors: ['RSO_0163', 'RSO_0144', 'RSO_0053', 'RSO_0191', 'RSO_0108', 'RSO_0187', 'RSO_0193', 'RSO_0092', 'RSO_0188', 'RSO_0052']
+Query RSO: 48442
+  KD-tree neighbors:   ['45764', '45366', '46034', '65867', '63231', '43180', '61971', '57731', '52907', '43187']
+  BruteForce neighbors: ['45764', '45366', '46034', '65867', '63231', '43180', '61971', '57731', '52907', '43187']
+Query RSO: 61614
+  KD-tree neighbors:   ['61615', '45217', '45189', '45581', '45225', '45696', '45679', '45197', '45697', '45074']
+  BruteForce neighbors: ['61615', '45217', '45189', '45581', '45225', '45696', '45679', '45197', '45697', '45074']
+Query RSO: 61615
+  KD-tree neighbors:   ['61614', '45217', '45225', '45697', '45581', '45189', '45679', '45201', '45074', '45696']
+  BruteForce neighbors: ['61614', '45217', '45225', '45697', '45581', '45189', '45679', '45201', '45074', '45696']
+Query RSO: 48621
+  KD-tree neighbors:   ['45419', '18417', '29268', '45367', '30249', '45567', '47229', '30452', '37791', '27869']
+  BruteForce neighbors: ['45419', '18417', '29268', '45367', '30249', '45567', '47229', '30452', '37791', '27869']
+Query RSO: 43080
+  KD-tree neighbors:   ['2674', '45689', '100793', '45570', '100243', '8595', '64504', '28414', '59071', '63807']
+  BruteForce neighbors: ['2674', '45689', '100793', '45570', '100243', '8595', '64504', '28414', '59071', '63807']
 
 
 --- Neighbor IDs of first 5 RSOs (metric: mahalanobis) ---
-Query RSO: RSO_0000
-  KD-tree neighbors:   ['RSO_0152', 'RSO_0097', 'RSO_0077', 'RSO_0127', 'RSO_0145', 'RSO_0016', 'RSO_0043', 'RSO_0007', 'RSO_0175', 'RSO_0149']
-  BruteForce neighbors: ['RSO_0152', 'RSO_0097', 'RSO_0077', 'RSO_0127', 'RSO_0145', 'RSO_0016', 'RSO_0043', 'RSO_0007', 'RSO_0175', 'RSO_0149']
-Query RSO: RSO_0001
-  KD-tree neighbors:   ['RSO_0018', 'RSO_0068', 'RSO_0061', 'RSO_0129', 'RSO_0086', 'RSO_0107', 'RSO_0090', 'RSO_0059', 'RSO_0143', 'RSO_0073']
-  BruteForce neighbors: ['RSO_0018', 'RSO_0068', 'RSO_0061', 'RSO_0129', 'RSO_0086', 'RSO_0107', 'RSO_0090', 'RSO_0059', 'RSO_0143', 'RSO_0073']
-Query RSO: RSO_0002
-  KD-tree neighbors:   ['RSO_0125', 'RSO_0070', 'RSO_0124', 'RSO_0067', 'RSO_0050', 'RSO_0024', 'RSO_0169', 'RSO_0190', 'RSO_0049', 'RSO_0157']
-  BruteForce neighbors: ['RSO_0125', 'RSO_0070', 'RSO_0124', 'RSO_0067', 'RSO_0050', 'RSO_0024', 'RSO_0169', 'RSO_0190', 'RSO_0049', 'RSO_0157']
-Query RSO: RSO_0003
-  KD-tree neighbors:   ['RSO_0190', 'RSO_0046', 'RSO_0011', 'RSO_0029', 'RSO_0197', 'RSO_0166', 'RSO_0194', 'RSO_0125', 'RSO_0088', 'RSO_0013']
-  BruteForce neighbors: ['RSO_0190', 'RSO_0046', 'RSO_0011', 'RSO_0029', 'RSO_0197', 'RSO_0166', 'RSO_0194', 'RSO_0125', 'RSO_0088', 'RSO_0013']
-Query RSO: RSO_0004
-  KD-tree neighbors:   ['RSO_0144', 'RSO_0108', 'RSO_0163', 'RSO_0034', 'RSO_0044', 'RSO_0116', 'RSO_0019', 'RSO_0076', 'RSO_0133', 'RSO_0092']
-  BruteForce neighbors: ['RSO_0144', 'RSO_0108', 'RSO_0163', 'RSO_0034', 'RSO_0044', 'RSO_0116', 'RSO_0019', 'RSO_0076', 'RSO_0133', 'RSO_0092']
+Query RSO: 48442
+  KD-tree neighbors:   ['45764', '46034', '45366', '46048', '43187', '43180', '65867', '63231', '58884', '61971']
+  BruteForce neighbors: ['45764', '46034', '45366', '46048', '43187', '43180', '65867', '63231', '58884', '61971']
+Query RSO: 61614
+  KD-tree neighbors:   ['61615', '45217', '45189', '45581', '45225', '45679', '45696', '45697', '45197', '45074']
+  BruteForce neighbors: ['61615', '45217', '45189', '45581', '45225', '45679', '45696', '45697', '45197', '45074']
+Query RSO: 61615
+  KD-tree neighbors:   ['61614', '45217', '45225', '45697', '45189', '45581', '45679', '45201', '45074', '45696']
+  BruteForce neighbors: ['61614', '45217', '45225', '45697', '45189', '45581', '45679', '45201', '45074', '45696']
+Query RSO: 48621
+  KD-tree neighbors:   ['45419', '18417', '27869', '30249', '29268', '45367', '37791', '47229', '45567', '30452']
+  BruteForce neighbors: ['45419', '18417', '27869', '30249', '29268', '45367', '37791', '47229', '45567', '30452']
+Query RSO: 43080
+  KD-tree neighbors:   ['2674', '45689', '100793', '45570', '100243', '64504', '4389', '8595', '28414', '59071']
+  BruteForce neighbors: ['2674', '45689', '100793', '45570', '100243', '64504', '4389', '8595', '28414', '59071']
 
 
 --- Neighbor IDs of first 5 RSOs (metric: wasserstein) ---
-Query RSO: RSO_0000
-  KD-tree neighbors:   ['RSO_0007', 'RSO_0152', 'RSO_0127', 'RSO_0145', 'RSO_0097', 'RSO_0077', 'RSO_0119', 'RSO_0111', 'RSO_0098', 'RSO_0095']
-  BruteForce neighbors: ['RSO_0007', 'RSO_0152', 'RSO_0127', 'RSO_0145', 'RSO_0097', 'RSO_0077', 'RSO_0119', 'RSO_0111', 'RSO_0098', 'RSO_0095']
-Query RSO: RSO_0001
-  KD-tree neighbors:   ['RSO_0061', 'RSO_0068', 'RSO_0018', 'RSO_0059', 'RSO_0129', 'RSO_0099', 'RSO_0044', 'RSO_0073', 'RSO_0090', 'RSO_0063']
-  BruteForce neighbors: ['RSO_0061', 'RSO_0068', 'RSO_0018', 'RSO_0059', 'RSO_0129', 'RSO_0099', 'RSO_0044', 'RSO_0073', 'RSO_0090', 'RSO_0063']
-Query RSO: RSO_0002
-  KD-tree neighbors:   ['RSO_0125', 'RSO_0124', 'RSO_0070', 'RSO_0067', 'RSO_0050', 'RSO_0024', 'RSO_0154', 'RSO_0157', 'RSO_0190', 'RSO_0158']
-  BruteForce neighbors: ['RSO_0125', 'RSO_0124', 'RSO_0070', 'RSO_0067', 'RSO_0050', 'RSO_0024', 'RSO_0154', 'RSO_0157', 'RSO_0190', 'RSO_0158']
-Query RSO: RSO_0003
-  KD-tree neighbors:   ['RSO_0190', 'RSO_0011', 'RSO_0046', 'RSO_0029', 'RSO_0197', 'RSO_0102', 'RSO_0100', 'RSO_0166', 'RSO_0125', 'RSO_0194']
-  BruteForce neighbors: ['RSO_0190', 'RSO_0011', 'RSO_0046', 'RSO_0029', 'RSO_0197', 'RSO_0102', 'RSO_0100', 'RSO_0166', 'RSO_0125', 'RSO_0194']
-Query RSO: RSO_0004
-  KD-tree neighbors:   ['RSO_0108', 'RSO_0163', 'RSO_0144', 'RSO_0034', 'RSO_0092', 'RSO_0052', 'RSO_0019', 'RSO_0121', 'RSO_0116', 'RSO_0173']
-  BruteForce neighbors: ['RSO_0108', 'RSO_0163', 'RSO_0144', 'RSO_0034', 'RSO_0092', 'RSO_0052', 'RSO_0019', 'RSO_0117', 'RSO_0121', 'RSO_0116']
+Query RSO: 48442
+  KD-tree neighbors:   ['46048', '43180', '45764', '45366', '46034', '43187', '65867', '63231', '58884', '52907']
+  BruteForce neighbors: ['46048', '43180', '45764', '45366', '46034', '43187', '65867', '63231', '58884', '52907']
+Query RSO: 61614
+  KD-tree neighbors:   ['61615', '45217', '45581', '45189', '45225', '45679', '45697', '45201', '45074', '45696']
+  BruteForce neighbors: ['61615', '45217', '45581', '45189', '45225', '45679', '45697', '45201', '45074', '45696']
+Query RSO: 61615
+  KD-tree neighbors:   ['61614', '45217', '45225', '45679', '45697', '45189', '45581', '45074', '45201', '45696']
+  BruteForce neighbors: ['61614', '45217', '45225', '45679', '45697', '45189', '45581', '45074', '45201', '45696']
+Query RSO: 48621
+  KD-tree neighbors:   ['27869', '45419', '18417', '37791', '45185', '30249', '45367', '30821', '30452', '47229']
+  BruteForce neighbors: ['27869', '45419', '18417', '37791', '45185', '30249', '45367', '30821', '30452', '47229']
+Query RSO: 43080
+  KD-tree neighbors:   ['2674', '45689', '100793', '64504', '45570', '100243', '4389', '8595', '59071', '48157']
+  BruteForce neighbors: ['2674', '45689', '100793', '64504', '45570', '100243', '4389', '8595', '59071', '48157']
 
 
 === Benchmark Results ===
      Metric  GMM Components  K-D Tree Time (s)  Brute Force Time (s)  Recall@K  Distance Evaluations  Nodes Visited  Nodes Pruned  Leaves Visited  Mean Distance Difference
-  hellinger               6          96.042353            166.927633    0.9825                 12291          16863          4573           12491              2.220446e-19
-         kl               6          99.782966            172.932184    0.9305                 16908          21556          4648           17108              0.000000e+00
-mahalanobis               6          69.554343            123.530316    0.9865                 11087          15730          4647           11287              0.000000e+00
-wasserstein               6          85.217120            131.534116    0.9820                 12996          17676          4680           13196              6.810365e-13
+  hellinger               6         216.535644            102.485632    0.7235                 25623          28545          2922           25823              0.000000e+00
+         kl               6          61.116667            148.592897    0.9965                  8116          12058          3952            8316              0.000000e+00
+mahalanobis               6          60.531079            165.855946    0.9985                  7427          11347          3930            7627              0.000000e+00
+wasserstein               6          58.874164            170.250839    1.0000                  6639          10515          3888            6839              4.263256e-17
 
-Catalogue build time: 0.1141s
-K-D tree build time: 0.0139s
+Catalogue build time: 0.1476s
+K-D tree build time: 0.0080s
 Benchmark results written to runs\benchmark_k10_N200.csv
