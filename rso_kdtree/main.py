@@ -71,26 +71,26 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--var-min",
         type=float,
-        default=100.0,
-        help="Minimum covariance variance in km^2 (default: 100, per Mercurio & Singla 2016)",
+        default=10000.0,
+        help="Minimum covariance variance in km^2 (default: 10000)",
     )
     parser.add_argument(
         "--var-max",
         type=float,
-        default=10000.0,
-        help="Maximum covariance variance in km^2 (default: 10000, per Mercurio)",
+        default=1000000000.0,
+        help="Maximum covariance variance in km^2 (default: 1000000000)",
     )
     parser.add_argument(
         "--output",
         type=str,
         default="benchmark.csv",
-        help="Output CSV path for KNN results",
+        help="Output CSV path for KNN results. Default: benchmark.csv since this is the default output for the benchmark suite.",
     )
     parser.add_argument(
         "--log-output",
         type=str,
         default="log.txt",
-        help="Output text file path for benchmark log (includes settings and results)",
+        help="Output text file path for benchmark terminal log (includes settings and results). Default: log.txt",
     )
     parser.add_argument(
         "--benchmark",
@@ -264,7 +264,7 @@ def run_benchmark(config: argparse.Namespace) -> None:
         tee.write(f"metrics: all (hellinger, wasserstein, mahalanobis, kl)\n")
         tee.write("\n")
 
-        results = bench_run(bench_config)
+        results = bench_run(bench_config, log_write=tee.write)
         df = results.to_dataframe()
 
         tee.write("\n=== Benchmark Results ===\n")

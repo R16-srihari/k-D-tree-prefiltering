@@ -44,8 +44,9 @@ python -m rso_kdtree.main \
 Run the full benchmark suite across all four metrics:
 
 ```bash
-python -m rso_kdtree.main --benchmark --output benchmark.csv
+python -m rso_kdtree.main --benchmark
 ```
+Default paramters are set in `main.py` and can be overridden via command-line arguments. See `python -m rso_kdtree.main --help` for details.
 
 ## Package Structure
 
